@@ -111,13 +111,18 @@
       <div id="chartTitleRealtime" class="sub" style="margin-bottom:8px">近 10 分鐘 CO₂ 濃度趨勢</div>
       <div class="chart-realtime"><canvas id="chartRealtime"></canvas></div>
 
-      <div class="controls">
+      <!-- 第一排：設定選項 -->
+      <div class="controls" style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px dashed #e5e7eb;">
         <label class="sub">時間視窗：</label>
         <select id="selDurRealtime">
           <option value="10" selected>10 分鐘</option>
           <option value="30">30 分鐘</option>
           <option value="60">60 分鐘</option>
           <option value="120">120 分鐘</option>
+          <option value="150">150 分鐘</option>
+          <option value="180">180 分鐘</option>
+          <option value="210">210 分鐘</option>
+          <option value="240">240 分鐘</option>
         </select>
 
         <label class="sub">實驗：</label>
@@ -130,7 +135,10 @@
         </select>
 
         <input id="expName" type="text" placeholder="實驗名稱" style="min-width:180px;"/>
+      </div>
 
+      <!-- 第二排：操作按鈕 -->
+      <div class="controls" style="margin-top: 0;">
         <button id="btnStart" type="button" class="btn btn-green">開始</button>
         <button id="btnPause" type="button" class="btn btn-red" style="display:none;">暫停</button>
         <button id="btnClear" type="button" class="btn btn-deep">清空數據</button>
