@@ -24,7 +24,7 @@
   .dot{width:14px; height:14px; border-radius:50%; box-shadow:0 0 0 3px rgba(0,0,0,.06) inset;}
   .dot.red{background:#ef4444;} .dot.green{background:#16a34a;} .dot.gray{background:#cbd5e1;} .dot.yellow{background:#eab308;}
   
-  .btn{border:none; border-radius:12px; padding:12px 20px; font-weight:800; cursor:pointer; box-shadow:0 4px 6px rgba(0,0,0,.05); font-size:18px; line-height:1; transition:0.2s;}
+  .btn{border:none; border-radius:18px; padding:15px 27px; font-weight:800; cursor:pointer; box-shadow:var(--shadow); font-size:22px; line-height:1; transition:0.2s;}
   .btn:active{transform:translateY(2px);}
   .btn:disabled{opacity:0.5; cursor:not-allowed;}
   .btn-green{background:#16a34a; color:#fff;} .btn-red{background:#ef4444; color:#fff;}
@@ -95,7 +95,7 @@
       <canvas id="chart"></canvas>
 
       <div class="controls">
-        <label class="sub">時間視窗：</label>
+        <label class="sub">紀錄時間：</label>
         <select id="selDur">
           <option value="10" selected>10 分鐘</option>
           <option value="30">30 分鐘</option>
@@ -117,12 +117,13 @@
         <button id="btnStart" type="button" class="btn btn-green">開始</button>
         <button id="btnPause" type="button" class="btn btn-red" style="display:none;">暫停</button>
         <button id="btnClear" type="button" class="btn btn-deep">清空數據</button>
+        <button id="btnRedraw" type="button" class="btn btn-yellow">即時重繪</button>
+        <button id="btnMerge" type="button" class="btn btn-pink">趨勢圖</button>
         
-        <!-- 移除開啟試算表按鈕，避免外人看見 Google Sheets -->
-        <!-- <button id="btnMerge" type="button" class="btn btn-gray">開啟試算表</button> -->
+        <div id="remain" class="sub" style="margin-left:auto; font-weight:bold; font-size:22px;">剩餘：-- 秒</div>
         
         <!-- 開發者測試按鈕 (正式環境可隱藏) -->
-        <button id="btnSimulate" type="button" class="btn btn-yellow" style="margin-left:auto; font-size:14px; padding:8px;">模擬送資料</button>
+        <button id="btnSimulate" type="button" class="btn btn-gray" style="font-size:14px; padding:8px 12px; margin-left:10px;">模擬送資料</button>
       </div>
     </div>
   </div>
@@ -183,6 +184,7 @@
   const expNameInput = document.getElementById('expName');
   const btnStart = document.getElementById('btnStart');
   const btnPause = document.getElementById('btnPause');
+  const btnRedraw = document.getElementById('btnRedraw');
 
   // DB LED 元素
   const db1Dot = document.getElementById('db1Dot');
@@ -231,6 +233,31 @@
   // ==========================================
   // 4. 圖表設定 (Chart.js)
   // ==========================================
+  const riskThresholds = [
+    { y:450,  color:'#22c55e', label:'450 ppm'  },
+    { y:700,  color:'#84cc16', label:'700 ppm'  },
+    { y:1000, color:'#eab308', label:'1000 ppm' }
+  ];
+  
+  const RiskLinesPlugin = {
+    id:'riskLines',
+    afterDatasetsDraw(chart, args, opts){
+      const {ctx, chartArea, scales} = chart;
+      if(!chartArea) return;
+      const {top, bottom, left, right} = chartArea, y = scales.y;
+      ctx.save();
+      (opts.thresholds||[]).forEach(t=>{
+        const py = y.getPixelForValue(t.y); if (py < top || py > bottom) return;
+        ctx.setLineDash([6,4]); ctx.strokeStyle = t.color; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(left, py); ctx.lineTo(right, py); ctx.stroke();
+        ctx.setLineDash([]); ctx.fillStyle=t.color; ctx.font='12px system-ui, -apple-system'; ctx.textAlign='right';
+        ctx.fillText(t.label, right - 4, py - 6);
+      });
+      ctx.restore();
+    }
+  };
+  Chart.register(RiskLinesPlugin);
+
   const ctx = document.getElementById('chart').getContext('2d');
   const chart = new Chart(ctx,{
     type:'line',
@@ -239,9 +266,12 @@
       responsive:true, animation:false, maintainAspectRatio: false,
       scales:{
         x:{ type:'linear', min:0, max:DUR_MIN, title:{ display:true, text:'分鐘 (min)' } },
-        y:{ suggestedMin:350, suggestedMax:1000 }
+        y:{ suggestedMin:350, suggestedMax:1100 }
       },
-      plugins:{ legend:{ display:false } }
+      plugins:{ 
+        legend:{ display:false },
+        riskLines: { thresholds: riskThresholds }
+      }
     }
   });
 
@@ -388,7 +418,8 @@
 
   btnPause.addEventListener('click', async () => {
     await updateDoc(getStateRef(), { gate: 'off' });
-    showFloat('info', '已暫停接收');
+    showFloat('info', '已暫停接收，正在同步備份...');
+    await performSync(); // 暫停時立即觸發一次同步
   });
 
   document.getElementById('btnClear').addEventListener('click', async () => {
@@ -418,11 +449,44 @@
     showFloat('ok', '已清空資料');
   });
 
+  btnRedraw.addEventListener('click', () => {
+    if (isGateOn) { showFloat('err', '實驗中，無法重繪'); return; }
+    redrawChart();
+    showFloat('ok', '圖表已重新整理');
+  });
+
+  document.getElementById('btnMerge').addEventListener('click', () => {
+    // 您可以把這裡替換為開啟趨勢圖網頁的語法，例如： window.open('趨勢圖網址.html', '_blank');
+    showFloat('info', '趨勢圖功能準備中...', 3);
+  });
+
   // ==========================================
-  // 7. 背景同步機制 (備份系統狀態)
+  // 7. 背景同步機制與倒數計時
   // ==========================================
-  setInterval(async () => {
-    if (!auth.currentUser) return;
+  
+  // 剩餘時間倒數計時器 (每秒執行)
+  setInterval(() => {
+    if (isGateOn && startTimeMs) {
+      const usedSec = (Date.now() - startTimeMs) / 1000;
+      const remainSec = Math.max(0, Math.floor(DUR_MIN * 60 - usedSec));
+      document.getElementById('remain').textContent = `剩餘：${remainSec} 秒`;
+
+      // 時間到自動停止
+      if (remainSec === 0) {
+        updateDoc(getStateRef(), { gate: 'off' });
+        showFloat('info', '已達設定時長，自動停止並同步備份...', 4);
+        performSync(); // 時間到時立即觸發一次同步
+      }
+    } else {
+      document.getElementById('remain').textContent = `剩餘：-- 秒`;
+    }
+  }, 1000);
+
+  // 獨立出同步函式，避免重複執行 (防塞車)
+  let isSyncing = false;
+  async function performSync() {
+    if (!auth.currentUser || isSyncing) return;
+    isSyncing = true;
     try {
       const snap = await getDocs(getRecordsRef(currentExp));
       const pendingSync = [];
@@ -463,8 +527,13 @@
     } catch (e) {
       db2Dot.className = 'dot red';
       db2Text.textContent = '備份系統: 連線異常';
+    } finally {
+      isSyncing = false;
     }
-  }, 15000);
+  }
+
+  // 備份系統同步 (拉長至每 30 秒檢查一次，減少塞車機率)
+  setInterval(performSync, 30000);
 
   // ==========================================
   // 8. 測試模擬用
