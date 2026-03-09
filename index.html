@@ -19,7 +19,9 @@
   .big .num{font-size:var(--fs-num); font-weight:900; margin-right:14px; font-variant-numeric: tabular-nums;}
   .big .unit{font-size:var(--fs-sub); color:#475569; align-self:flex-end; margin-bottom:10px;}
   .sub{color:#475569; font-size:var(--fs-sub); margin-top:6px;}
-  canvas{width:100%; height:360px;}
+  
+  /* 移除原本的 canvas CSS，改由外層 wrapper 控制高度避免跳動 */
+  
   .led{display:inline-flex; align-items:center; gap:8px; font-weight:700;}
   .dot{width:14px; height:14px; border-radius:50%; box-shadow:0 0 0 3px rgba(0,0,0,.06) inset;}
   .dot.red{background:#ef4444;} .dot.green{background:#16a34a;} .dot.gray{background:#cbd5e1;} .dot.yellow{background:#eab308;}
@@ -92,10 +94,14 @@
 
     <div class="card" style="margin-top:16px">
       <div id="chartTitle" class="sub" style="margin-bottom:8px">近 10 分鐘 CO₂ 濃度趨勢</div>
-      <canvas id="chart"></canvas>
+      
+      <!-- ★ 修正圖表無限跳動的關鍵：加入固定高度且 position relative 的外層 div ★ -->
+      <div style="position: relative; height: 360px; width: 100%;">
+        <canvas id="chart"></canvas>
+      </div>
 
       <div class="controls">
-        <label class="sub">紀錄時間：</label>
+        <label class="sub">時間視窗：</label>
         <select id="selDur">
           <option value="10" selected>10 分鐘</option>
           <option value="30">30 分鐘</option>
@@ -419,7 +425,7 @@
   btnPause.addEventListener('click', async () => {
     await updateDoc(getStateRef(), { gate: 'off' });
     showFloat('info', '已暫停接收，正在同步備份...');
-    await performSync(); // 暫停時立即觸發一次同步
+    await performSync();
   });
 
   document.getElementById('btnClear').addEventListener('click', async () => {
@@ -448,7 +454,7 @@
     redrawChart();
     showFloat('ok', '已清空資料');
   });
-
+  
   btnRedraw.addEventListener('click', () => {
     if (isGateOn) { showFloat('err', '實驗中，無法重繪'); return; }
     redrawChart();
@@ -464,25 +470,23 @@
   // 7. 背景同步機制與倒數計時
   // ==========================================
   
-  // 剩餘時間倒數計時器 (每秒執行)
+  // 剩餘時間倒數計時器
   setInterval(() => {
     if (isGateOn && startTimeMs) {
       const usedSec = (Date.now() - startTimeMs) / 1000;
       const remainSec = Math.max(0, Math.floor(DUR_MIN * 60 - usedSec));
       document.getElementById('remain').textContent = `剩餘：${remainSec} 秒`;
 
-      // 時間到自動停止
       if (remainSec === 0) {
         updateDoc(getStateRef(), { gate: 'off' });
         showFloat('info', '已達設定時長，自動停止並同步備份...', 4);
-        performSync(); // 時間到時立即觸發一次同步
+        performSync();
       }
     } else {
       document.getElementById('remain').textContent = `剩餘：-- 秒`;
     }
   }, 1000);
 
-  // 獨立出同步函式，避免重複執行 (防塞車)
   let isSyncing = false;
   async function performSync() {
     if (!auth.currentUser || isSyncing) return;
@@ -498,7 +502,6 @@
         }
       });
 
-      // 更新備份系統燈號
       if (pendingSync.length > 0) {
         db2Dot.className = 'dot yellow';
         db2Text.textContent = `備份系統: 同步中(${pendingSync.length})`;
@@ -532,7 +535,7 @@
     }
   }
 
-  // 備份系統同步 (拉長至每 30 秒檢查一次，減少塞車機率)
+  // 備份系統同步 (30 秒一次)
   setInterval(performSync, 30000);
 
   // ==========================================
