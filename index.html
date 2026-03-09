@@ -6,60 +6,76 @@
 <title>環境二氧化碳即時看板 - 自然碳匯</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
-  :root{ --wrap:960px; --fs-title:45px; --fs-msg:26px; --fs-num:56px; --fs-sub:20px;
+  :root{ --wrap:1100px; --fs-title:45px; --fs-msg:26px; --fs-num:56px; --fs-sub:20px;
          --radius:18px; --page:#f7f8fa; --card:#fff; --text:#1f2937; --shadow:0 10px 24px rgba(0,0,0,.08);
          --ok:#16a34a; --err:#dc2626; --info:#2563eb; }
   body{margin:0; font-family:system-ui,-apple-system,"Noto Sans TC",sans-serif; background:var(--page); color:var(--text);}
   .wrap{max-width:var(--wrap); margin:28px auto; padding:0 16px;}
   .card{background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:20px 24px;}
-  .title{font-size:var(--fs-title); font-weight:800; letter-spacing:.5px; margin:6px 0 12px; text-align:center;}
+  .title{font-size:var(--fs-title); font-weight:800; letter-spacing:.5px; margin:6px 0 16px; text-align:center;}
+  .title-3d{background:linear-gradient(180deg,#2f3d52 0%,#142133 100%); -webkit-background-clip:text; color:transparent; text-shadow:0 2px 4px rgba(0,0,0,.15);}
+  
+  /* Layout */
   .grid{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
   @media(max-width: 768px) { .grid { grid-template-columns: 1fr; } }
+  .row{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-top:12px; }
+  
+  /* Typography & Elements */
   .big{display:flex; align-items:center; justify-content:center; height:160px;}
   .big .num{font-size:var(--fs-num); font-weight:900; margin-right:14px; font-variant-numeric: tabular-nums;}
   .big .unit{font-size:var(--fs-sub); color:#475569; align-self:flex-end; margin-bottom:10px;}
-  .sub{color:#475569; font-size:var(--fs-sub); margin-top:6px;}
+  .sub{color:#475569; font-size:var(--fs-sub); margin-top:6px; font-weight:700;}
   
-  /* 移除原本的 canvas CSS，改由外層 wrapper 控制高度避免跳動 */
-  
+  /* Indicators */
   .led{display:inline-flex; align-items:center; gap:8px; font-weight:700;}
   .dot{width:14px; height:14px; border-radius:50%; box-shadow:0 0 0 3px rgba(0,0,0,.06) inset;}
   .dot.red{background:#ef4444;} .dot.green{background:#16a34a;} .dot.gray{background:#cbd5e1;} .dot.yellow{background:#eab308;}
+  .risk { display:flex; align-items:center; gap:10px; margin-top:6px; }
+  .risk-dot{ width:30px; height:30px; border-radius:50%; box-shadow:0 0 0 4px rgba(0,0,0,.06) inset, 0 0 0 2px rgba(0,0,0,.05); }
+  .risk-text{ font-size: var(--fs-sub); color:#475569; font-weight:700; }
+  .db-status-bar { display:flex; justify-content:space-around; margin-top:10px; background:#f1f5f9; padding:10px; border-radius:12px; }
   
-  .btn{border:none; border-radius:18px; padding:15px 27px; font-weight:800; cursor:pointer; box-shadow:var(--shadow); font-size:22px; line-height:1; transition:0.2s;}
+  /* Buttons & Controls */
+  .btn{border:none; border-radius:12px; padding:12px 20px; font-weight:800; cursor:pointer; box-shadow:0 4px 6px rgba(0,0,0,.05); font-size:18px; line-height:1; transition:0.2s;}
   .btn:active{transform:translateY(2px);}
   .btn:disabled{opacity:0.5; cursor:not-allowed;}
   .btn-green{background:#16a34a; color:#fff;} .btn-red{background:#ef4444; color:#fff;}
   .btn-yellow{background:#f59e0b; color:#111;} .btn-deep{background:#065f46; color:#fff;}
-  .btn-pink{background:#ec4899; color:#fff;} .btn-gray{background:#9ca3af; color:#111;}
+  .btn-pink{background:#ec4899; color:#fff;} .btn-gray{background:#9ca3af; color:#111;} .btn-primary{background:#3b82f6; color:#fff;}
+  .controls{display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-top:16px;}
+  select, input[type="text"]{font-size:18px; padding:8px 12px; border-radius:8px; border:1px solid #cbd5e1;}
+  select:focus, input:focus { outline:none; border-color:#2563eb; box-shadow:0 0 0 3px rgba(37,99,235,.15); }
+  label.chk{ display:inline-flex; align-items:center; gap:6px; font-size:18px; cursor:pointer; min-width:140px; }
+  
+  /* Chart Containers */
+  .chart-realtime { position: relative; height: 360px; width: 100%; margin-top:10px; }
+  .chart-trend { position: relative; height: 560px; width: 100%; margin-top: 20px; }
+  
+  /* Views */
+  .view-section { display: none; animation: fadeIn 0.3s ease; }
+  .view-section.active { display: block; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
+  /* Floating Msg & Modal */
   .float-msg{position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); color:#fff; font-size:var(--fs-msg); font-weight:800; padding:14px 22px; border-radius:99px; white-space:nowrap; box-shadow:var(--shadow); opacity:0; pointer-events:none; transition:.2s; z-index:9999;}
   .float-show{opacity:1; transform:translate(-50%,-50%) scale(1.02);}
   .ok{background:var(--ok);} .err{background:var(--err);} .info{background:var(--info);}
-  
-  .controls{display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-top:16px;}
-  .controls select, .controls input{font-size:18px; padding:8px 12px; border-radius:8px; border:1px solid #cbd5e1;}
-  .title-3d{background:linear-gradient(180deg,#2f3d52 0%,#142133 100%); -webkit-background-clip:text; color:transparent; text-shadow:0 2px 4px rgba(0,0,0,.15);}
-  .risk { display:flex; align-items:center; gap:10px; margin-top:6px; }
-  .risk-dot{ width:30px; height:30px; border-radius:50%; box-shadow:0 0 0 4px rgba(0,0,0,.06) inset, 0 0 0 2px rgba(0,0,0,.05); }
-  .risk-text{ font-size: var(--fs-sub); color:#475569; font-weight:700; }
-  
-  /* Modal */
   .modal-backdrop{ position:fixed; inset:0; background:rgba(0,0,0,.35); display:none; align-items:center; justify-content:center; z-index:10000; }
   .modal{ background:#fff; border-radius:16px; box-shadow:var(--shadow); max-width:400px; width:90%; padding:24px; text-align:center; }
   .modal h3{ margin:0 0 12px; font-size:24px; }
   .modal p{ margin:0 0 20px; font-size:18px; color:#4b5563;}
-  .modal .row{ display:flex; gap:12px; justify-content:center; }
-  
-  .db-status-bar { display:flex; justify-content:space-around; margin-top:10px; background:#f1f5f9; padding:10px; border-radius:12px; }
 </style>
 </head>
 <body>
-  <div class="wrap">
+
+<div class="wrap">
+  
+  <!-- ==================== View 1: 即時監測看板 ==================== -->
+  <div id="viewRealtime" class="view-section active">
     <div class="card">
       <div class="title">
         <span class="title-3d">環境二氧化碳即時看板 (自然碳匯)</span>
-        <span style="font-size: 16px; color: #9ca3af; font-weight: normal; margin-left: 8px; vertical-align: bottom;">V.20260309.1</span>
+        <span style="font-size: 16px; color: #9ca3af; font-weight: normal; margin-left: 8px; vertical-align: bottom;">V.20260309.2</span>
       </div>
       <div class="grid">
         <div class="card">
@@ -83,7 +99,6 @@
             <div class="led"><span id="ledDot" class="dot gray"></span><span id="ledText" class="sub" style="margin-top:0;">等待連線</span></div>
           </div>
           
-          <!-- 雙資料庫隱匿燈號區 -->
           <div class="db-status-bar">
             <div class="led" title="核心即時系統"><span id="db1Dot" class="dot gray"></span><span id="db1Text" style="font-size:14px; color:#475569;">主系統: 連線中</span></div>
             <div class="led" title="長期保存系統"><span id="db2Dot" class="dot gray"></span><span id="db2Text" style="font-size:14px; color:#475569;">備份系統: 待命</span></div>
@@ -93,16 +108,12 @@
     </div>
 
     <div class="card" style="margin-top:16px">
-      <div id="chartTitle" class="sub" style="margin-bottom:8px">近 10 分鐘 CO₂ 濃度趨勢</div>
-      
-      <!-- ★ 修正圖表無限跳動的關鍵：加入固定高度且 position relative 的外層 div ★ -->
-      <div style="position: relative; height: 360px; width: 100%;">
-        <canvas id="chart"></canvas>
-      </div>
+      <div id="chartTitleRealtime" class="sub" style="margin-bottom:8px">近 10 分鐘 CO₂ 濃度趨勢</div>
+      <div class="chart-realtime"><canvas id="chartRealtime"></canvas></div>
 
       <div class="controls">
         <label class="sub">時間視窗：</label>
-        <select id="selDur">
+        <select id="selDurRealtime">
           <option value="10" selected>10 分鐘</option>
           <option value="30">30 分鐘</option>
           <option value="60">60 分鐘</option>
@@ -124,42 +135,93 @@
         <button id="btnPause" type="button" class="btn btn-red" style="display:none;">暫停</button>
         <button id="btnClear" type="button" class="btn btn-deep">清空數據</button>
         <button id="btnRedraw" type="button" class="btn btn-yellow">即時重繪</button>
-        <button id="btnMerge" type="button" class="btn btn-pink">趨勢圖</button>
+        
+        <!-- 切換至趨勢圖 -->
+        <button id="btnSwitchToTrend" type="button" class="btn btn-pink">📊 趨勢分析</button>
         
         <div id="remain" class="sub" style="margin-left:auto; font-weight:bold; font-size:22px;">剩餘：-- 秒</div>
+        <!-- 開發者測試按鈕 -->
+        <button id="btnSimulate" type="button" class="btn btn-gray" style="font-size:14px; padding:8px 12px; margin-left:10px; display:none;">模擬</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== View 2: 趨勢分析比較 ==================== -->
+  <div id="viewTrend" class="view-section">
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 16px;">
+        <div class="title" style="margin-bottom:0; font-size:36px;">CO₂ 趨勢分析圖 (多實驗比較)</div>
+        <button id="btnBackToRealtime" class="btn btn-gray">⬅ 返回即時看板</button>
+      </div>
+
+      <div class="row" style="background: #f8fafc; padding: 12px; border-radius: 12px; border: 1px solid #e2e8f0;">
+        <label class="sub">資料來源：</label>
+        <select id="selSource" style="background:#e0f2fe; border-color:#bae6fd; font-weight:bold; color:#0369a1;">
+          <option value="firebase">主系統 (最新即時資料)</option>
+          <option value="sheet">備份系統 (長期保存資料)</option>
+        </select>
+
+        <label class="sub" style="margin-left:20px;">時間範圍：</label>
+        <select id="selDurTrend">
+          <option value="10">10 分鐘</option>
+          <option value="30">30 分鐘</option>
+          <option value="60">60 分鐘</option>
+          <option value="120" selected>120 分鐘</option>
+          <option value="150">150 分鐘</option>
+          <option value="180">180 分鐘</option>
+          <option value="210">210 分鐘</option>
+          <option value="240">240 分鐘</option>
+        </select>
         
-        <!-- 開發者測試按鈕 (正式環境可隱藏) -->
-        <button id="btnSimulate" type="button" class="btn btn-gray" style="font-size:14px; padding:8px 12px; margin-left:10px;">模擬送資料</button>
+        <span id="loadingTrend" style="display:none; color:#f59e0b; font-weight:bold; margin-left:10px;">資料讀取中...</span>
       </div>
+
+      <div class="row" style="margin-top: 20px;">
+        <span class="sub" style="flex:0 0 60px; text-align:right;">實驗：</span>
+        <div style="flex:1; display:flex; flex-wrap:wrap; gap:10px 18px; align-items:center;">
+          <label class="chk"><input type="checkbox" name="chkExp" value="exp1" checked> 1.實驗1</label>
+          <label class="chk"><input type="checkbox" name="chkExp" value="exp2"> 2.實驗2</label>
+          <label class="chk"><input type="checkbox" name="chkExp" value="exp3"> 3.實驗3</label>
+          <label class="chk"><input type="checkbox" name="chkExp" value="exp4"> 4.實驗4</label>
+          <label class="chk"><input type="checkbox" name="chkExp" value="exp5"> 5.實驗5</label>
+          <label class="chk"><input type="checkbox" name="chkExp" value="exp6"> 6.實驗6</label>
+          <label class="chk"><input type="checkbox" name="chkExp" value="exp7"> 7.實驗7</label>
+          <label class="chk"><input type="checkbox" name="chkExp" value="exp8"> 8.實驗8</label>
+          <label class="chk"><input type="checkbox" name="chkExp" value="exp9"> 9.實驗9</label>
+          <label class="chk"><input type="checkbox" name="chkExp" value="exp10"> 10.實驗10</label>
+          <button id="btnReloadTrend" type="button" class="btn btn-primary" style="padding: 8px 16px; font-size:16px;">重新載入圖表</button>
+        </div>
+      </div>
+
+      <div class="chart-trend"><canvas id="chartTrend"></canvas></div>
     </div>
   </div>
 
-  <div id="float" class="float-msg"></div>
+</div>
 
-  <!-- Modal -->
-  <div id="modalBackdrop" class="modal-backdrop">
-    <div class="modal">
-      <h3 id="modalTitle">確認</h3>
-      <p id="modalMsg">—</p>
-      <div class="row">
-        <button id="btnCancelModal" class="btn btn-gray">取消</button>
-        <button id="btnOkModal" class="btn btn-red">確定</button>
-      </div>
+<!-- Global Floating Elements -->
+<div id="float" class="float-msg"></div>
+<div id="modalBackdrop" class="modal-backdrop">
+  <div class="modal">
+    <h3 id="modalTitle">確認</h3>
+    <p id="modalMsg">—</p>
+    <div style="display:flex; gap:12px; justify-content:center;">
+      <button id="btnCancelModal" class="btn btn-gray">取消</button>
+      <button id="btnOkModal" class="btn btn-red">確定</button>
     </div>
   </div>
+</div>
 
 <script type="module">
   // ==========================================
-  // 1. Firebase & GAS 設定
+  // 1. Firebase & GAS 核心設定
   // ==========================================
   import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
   import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-  import { getFirestore, collection, doc, setDoc, getDoc, onSnapshot, addDoc, updateDoc, writeBatch, deleteDoc, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+  import { getFirestore, collection, doc, setDoc, onSnapshot, addDoc, updateDoc, writeBatch, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-  // ★ GAS 部署網址 ★
   const GAS_URL = "https://script.google.com/macros/s/AKfycbwg6cdyhiKeXSQp3lCf3mwWXtUYu05jJ9EWfxm0vctJeMd4FYh-s5QmsJDhFlp9ctQ7/exec"; 
 
-  // Firebase Config
   const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
     apiKey: "AIzaSyAbCKl0RM9gTiZFhJyErvA_c8R3wD7iMCE",
     authDomain: "carbon-capture-natural.firebaseapp.com",
@@ -174,33 +236,15 @@
   const app = initializeApp(firebaseConfig);
   const auth = getAuth(app);
   const db = getFirestore(app);
+  let isAuthReady = false;
 
   // ==========================================
-  // 2. 全域變數與 UI 元素
+  // 2. 全域變數與輔助函式
   // ==========================================
-  let DUR_MIN = 10;
-  let currentExp = 'exp1';
-  let isGateOn = false;
-  let startTimeMs = null;
-  let dataset = []; // 圖表資料
-  let unsubscribeRecords = null;
-  let unsubscribeState = null;
+  const KEYS = ['exp1','exp2','exp3','exp4','exp5','exp6','exp7','exp8','exp9','exp10'];
+  const COLORS = ['#ef4444','#10b981','#3b82f6','#f59e0b','#8b5cf6','#06b6d4','#b45309','#6b7280','#ec4899','#14b8a6'];
+  const riskThresholds = [ { y:450, c:'#22c55e', t:'450 ppm' }, { y:700, c:'#84cc16', t:'700 ppm' }, { y:1000, c:'#eab308', t:'1000 ppm' } ];
 
-  const selExp = document.getElementById('selExp');
-  const expNameInput = document.getElementById('expName');
-  const btnStart = document.getElementById('btnStart');
-  const btnPause = document.getElementById('btnPause');
-  const btnRedraw = document.getElementById('btnRedraw');
-
-  // DB LED 元素
-  const db1Dot = document.getElementById('db1Dot');
-  const db1Text = document.getElementById('db1Text');
-  const db2Dot = document.getElementById('db2Dot');
-  const db2Text = document.getElementById('db2Text');
-
-  // ==========================================
-  // 3. 輔助 UI 函式
-  // ==========================================
   function showFloat(type, text, seconds=2){
     const map={ok:'✅ ',err:'❌ ',info:'💡 '};
     const el=document.getElementById('float');
@@ -215,123 +259,133 @@
       document.getElementById('modalTitle').textContent = title;
       document.getElementById('modalMsg').textContent = msg;
       const backdrop = document.getElementById('modalBackdrop');
-      const btnOk = document.getElementById('btnOkModal');
-      const btnCancel = document.getElementById('btnCancelModal');
-      
       backdrop.style.display = 'flex';
       
       const cleanup = () => { backdrop.style.display = 'none'; };
-      btnOk.onclick = () => { cleanup(); resolve(true); };
-      btnCancel.onclick = () => { cleanup(); resolve(false); };
+      document.getElementById('btnOkModal').onclick = () => { cleanup(); resolve(true); };
+      document.getElementById('btnCancelModal').onclick = () => { cleanup(); resolve(false); };
     });
   }
 
-  function updateRisk(ppm){
+  function updateRiskUI(ppm){
     const dot=document.getElementById('riskDot'), txt=document.getElementById('riskText');
     if (ppm==null || isNaN(ppm)){ dot.style.background='#cbd5e1'; txt.textContent='--'; return; }
     const info = ppm<=450 ? {t:'健康',c:'#22c55e'} : ppm<=700 ? {t:'可接受',c:'#84cc16'}
                : ppm<=1000? {t:'稍悶',c:'#eab308'} : ppm<=2500? {t:'困倦',c:'#f59e0b'}
                : ppm<=5000? {t:'不利健康',c:'#f97316'} : {t:'請勿久待',c:'#ef4444'};
-    dot.style.background=info.c; 
-    txt.textContent=`${Math.round(ppm)} ppm｜${info.t}`;
+    dot.style.background=info.c; txt.textContent=`${Math.round(ppm)} ppm｜${info.t}`;
   }
 
   // ==========================================
-  // 4. 圖表設定 (Chart.js)
+  // 3. 圖表共用 Plugins 註冊
   // ==========================================
-  const riskThresholds = [
-    { y:450,  color:'#22c55e', label:'450 ppm'  },
-    { y:700,  color:'#84cc16', label:'700 ppm'  },
-    { y:1000, color:'#eab308', label:'1000 ppm' }
-  ];
-  
   const RiskLinesPlugin = {
     id:'riskLines',
     afterDatasetsDraw(chart, args, opts){
       const {ctx, chartArea, scales} = chart;
-      if(!chartArea) return;
-      const {top, bottom, left, right} = chartArea, y = scales.y;
+      if(!chartArea || !opts.thresholds) return;
+      const {top,bottom,left,right} = chartArea, y = scales.y;
       ctx.save();
-      (opts.thresholds||[]).forEach(t=>{
-        const py = y.getPixelForValue(t.y); if (py < top || py > bottom) return;
-        ctx.setLineDash([6,4]); ctx.strokeStyle = t.color; ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.moveTo(left, py); ctx.lineTo(right, py); ctx.stroke();
-        ctx.setLineDash([]); ctx.fillStyle=t.color; ctx.font='12px system-ui, -apple-system'; ctx.textAlign='right';
-        ctx.fillText(t.label, right - 4, py - 6);
+      opts.thresholds.forEach(L=>{
+        const py = y.getPixelForValue(L.y); if (py<top || py>bottom) return;
+        ctx.setLineDash([6,4]); ctx.strokeStyle=L.c; ctx.lineWidth=1;
+        ctx.beginPath(); ctx.moveTo(left,py); ctx.lineTo(right,py); ctx.stroke();
+        ctx.setLineDash([]); ctx.fillStyle=L.c; ctx.font='12px system-ui,-apple-system';
+        ctx.textAlign='right'; ctx.fillText(L.t, right-4, py-6);
       });
       ctx.restore();
     }
   };
-  Chart.register(RiskLinesPlugin);
 
-  const ctx = document.getElementById('chart').getContext('2d');
-  const chart = new Chart(ctx,{
-    type:'line',
-    data:{ datasets:[{ label:'CO₂ (PPM)', data: dataset, borderColor:'#2563eb', tension:.2, fill:false, spanGaps:true }]},
-    options:{
-      responsive:true, animation:false, maintainAspectRatio: false,
-      scales:{
-        x:{ type:'linear', min:0, max:DUR_MIN, title:{ display:true, text:'分鐘 (min)' } },
-        y:{ suggestedMin:350, suggestedMax:1100 }
-      },
-      plugins:{ 
-        legend:{ display:false },
-        riskLines: { thresholds: riskThresholds }
-      }
+  const MidLabelPlugin = {
+    id:'midLabel',
+    afterDatasetsDraw(chart, _args, passed){
+      const defaults = { font:{ family:'Noto Sans TC', size:18, weight:'600' }, paddingX:10, paddingY:4, radius:10, position:0.60 };
+      const opt = Object.assign({}, defaults, chart.options?.plugins?.midLabel || {}, passed || {});
+      const font = Object.assign({}, defaults.font, opt.font || {});
+
+      const {ctx, data, chartArea, scales} = chart;
+      if(!data?.datasets?.length || !chartArea) return;
+      const {left,right,top,bottom} = chartArea;
+      const xScale = scales.x;
+      const targetX = xScale.getPixelForValue(xScale.min + (xScale.max - xScale.min) * Math.max(0, Math.min(1, opt.position)));
+
+      const placed = [];
+      ctx.save();
+      ctx.textBaseline = 'middle';
+      data.datasets.forEach((ds, i) => {
+        const nodes = chart.getDatasetMeta(i)?.data || [];
+        if (!nodes.length || ds.hidden) return;
+
+        let bestIdx = 0, bestDx = Infinity, bestPt = null;
+        nodes.forEach(el=>{
+          const p = el.getProps(['x','y'], true);
+          const dx = Math.abs(p.x - targetX);
+          if (isFinite(p.x) && isFinite(p.y) && dx < bestDx){ bestDx = dx; bestPt = p; }
+        });
+        if (!bestPt || !(ds.label || '').trim()) return;
+        const text = ds.label.trim();
+
+        ctx.font = `${font.weight} ${font.size}px ${font.family}`;
+        const boxW = ctx.measureText(text).width + opt.paddingX*2;
+        const boxH = font.size + opt.paddingY*2;
+
+        let tx = Math.min(right-10, Math.max(left+10, bestPt.x));
+        let ty = Math.min(bottom-12, Math.max(top+12, bestPt.y));
+        let box = {x: tx - boxW/2, y: ty - boxH/2, w: boxW, h: boxH};
+
+        let tries = 0, dir = -1, step = Math.max(12, Math.round(font.size*0.7));
+        while (tries < 12 && placed.some(r => !(box.x+box.w < r.x || r.x+r.w < box.x || box.y+box.h < r.y || r.y+r.h < box.y))){
+          ty = Math.min(bottom-12, Math.max(top+12, ty + dir * step)); dir *= -1; tries++;
+          box = {x: tx - boxW/2, y: ty - boxH/2, w: boxW, h: boxH};
+        }
+        placed.push(box);
+
+        const r = Math.min(opt.radius, boxH/2, boxW/2);
+        ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.strokeStyle = ds.borderColor; ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(box.x+r, box.y); ctx.arcTo(box.x+box.w, box.y, box.x+box.w, box.y+box.h, r); 
+        ctx.arcTo(box.x+box.w, box.y+box.h, box.x, box.y+box.h, r); ctx.arcTo(box.x, box.y+box.h, box.x, box.y, r); ctx.arcTo(box.x, box.y, box.x+box.w, box.y, r);
+        ctx.fill(); ctx.stroke();
+        ctx.fillStyle = ds.borderColor; ctx.textAlign = 'center'; ctx.fillText(text, tx, ty + 0.5);
+      });
+      ctx.restore();
     }
-  });
+  };
 
-  function redrawChart(){
-    chart.options.scales.x.max = DUR_MIN;
-    document.getElementById('chartTitle').textContent = `近 ${DUR_MIN} 分鐘 CO₂ 濃度趨勢 (0~${DUR_MIN}分)`;
-    
-    // 自動調整 Y 軸
-    const vals = dataset.map(p=>p.y);
-    if(vals.length > 0) {
-       chart.options.scales.y.suggestedMin = Math.max(0, Math.min(...vals) - 100);
-       chart.options.scales.y.suggestedMax = Math.max(...vals) + 100;
-    }
-    chart.update();
-  }
-
-  document.getElementById('selDur').addEventListener('change', (e) => {
-    DUR_MIN = Number(e.target.value);
-    redrawChart();
-  });
+  Chart.register(RiskLinesPlugin, MidLabelPlugin);
 
   // ==========================================
-  // 5. 核心邏輯 (主系統連線)
+  // 4. View 1: 即時監測邏輯
   // ==========================================
+  let DUR_MIN_REALTIME = 10;
+  let currentExp = 'exp1';
+  let isGateOn = false, startTimeMs = null, datasetRealtime = [];
+  let unsubscribeRecords = null, unsubscribeState = null;
   const getStateRef = () => doc(db, 'artifacts', appId, 'public', 'data', 'config', 'global_state');
   const getRecordsRef = (exp) => collection(db, 'artifacts', appId, 'public', 'data', `records_${exp}`);
 
-  async function initFirebaseApp() {
-    try {
-      if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-        await signInWithCustomToken(auth, __initial_auth_token);
-      } else {
-        await signInAnonymously(auth);
-      }
-    } catch (err) {
-      console.error("Auth Error:", err);
-      db1Dot.className = 'dot red';
-      db1Text.textContent = '主系統: 授權失敗';
+  const chartRealtime = new Chart(document.getElementById('chartRealtime').getContext('2d'),{
+    type:'line', data:{ datasets:[{ label:'CO₂ (PPM)', data: datasetRealtime, borderColor:'#2563eb', tension:.2, fill:false, spanGaps:true }]},
+    options:{
+      responsive:true, animation:false, maintainAspectRatio: false,
+      scales:{ x:{ type:'linear', min:0, max:DUR_MIN_REALTIME, title:{ display:true, text:'分鐘 (min)' } }, y:{ suggestedMin:350, suggestedMax:1000 } },
+      plugins:{ legend:{ display:false }, riskLines: { thresholds: riskThresholds } }
     }
-    
-    onAuthStateChanged(auth, user => {
-      if (user) {
-        // 成功連線到主系統
-        db1Dot.className = 'dot green';
-        db1Text.textContent = '主系統: 已連線';
-        
-        listenToState();
-        switchExperiment(selExp.value);
-      } else {
-        db1Dot.className = 'dot red';
-        db1Text.textContent = '主系統: 斷線';
-      }
-    });
+  });
+
+  function redrawChartRealtime(){
+    chartRealtime.options.scales.x.max = DUR_MIN_REALTIME;
+    document.getElementById('chartTitleRealtime').textContent = `近 ${DUR_MIN_REALTIME} 分鐘 CO₂ 濃度趨勢 (0~${DUR_MIN_REALTIME}分)`;
+    const vals = datasetRealtime.map(p=>p.y);
+    if(vals.length > 0) {
+       chartRealtime.options.scales.y.suggestedMin = Math.max(0, Math.min(...vals) - 100);
+       chartRealtime.options.scales.y.suggestedMax = Math.max(...vals) + 100;
+    }
+    chartRealtime.update();
   }
+
+  document.getElementById('selDurRealtime').addEventListener('change', (e) => { DUR_MIN_REALTIME = Number(e.target.value); redrawChartRealtime(); });
 
   function listenToState() {
     if (unsubscribeState) unsubscribeState();
@@ -341,152 +395,89 @@
         isGateOn = data.gate === 'on';
         startTimeMs = data.startTimeMs || null;
         
-        // UI 更新
-        if (isGateOn) {
-          btnStart.style.display = 'none';
-          btnPause.style.display = 'inline-block';
-          document.getElementById('status').textContent = '記錄中';
-          document.getElementById('ledDot').className = 'dot green';
-          document.getElementById('ledText').textContent = '傳送中';
-        } else {
-          btnStart.style.display = 'inline-block';
-          btnPause.style.display = 'none';
-          document.getElementById('status').textContent = '已暫停';
-          document.getElementById('ledDot').className = 'dot red';
-          document.getElementById('ledText').textContent = '未記錄';
-        }
+        document.getElementById('btnStart').style.display = isGateOn ? 'none' : 'inline-block';
+        document.getElementById('btnPause').style.display = isGateOn ? 'inline-block' : 'none';
+        document.getElementById('status').textContent = isGateOn ? '記錄中' : '已暫停';
+        document.getElementById('ledDot').className = isGateOn ? 'dot green' : 'dot red';
+        document.getElementById('ledText').textContent = isGateOn ? '傳送中' : '未記錄';
 
         if (data.expKey && data.expKey !== currentExp) {
-           selExp.value = data.expKey;
-           switchExperiment(data.expKey);
+           document.getElementById('selExp').value = data.expKey;
+           switchExperimentRealtime(data.expKey);
         }
       } else {
         setDoc(getStateRef(), { gate: 'off', expKey: 'exp1', expName: '實驗1', startTimeMs: null });
       }
-    }, (error) => console.error("State Listener Error:", error));
+    });
   }
 
-  async function switchExperiment(exp) {
+  async function switchExperimentRealtime(exp) {
     currentExp = exp;
-    dataset.length = 0; 
-    redrawChart();
-    
+    datasetRealtime.length = 0; redrawChartRealtime();
     if (unsubscribeRecords) unsubscribeRecords();
 
     unsubscribeRecords = onSnapshot(getRecordsRef(exp), (snapshot) => {
-      let latestDoc = null;
-      let maxTs = 0;
-
-      dataset.length = 0;
-      
+      let latestDoc = null, maxTs = 0;
+      datasetRealtime.length = 0;
       snapshot.forEach(docSnap => {
         const d = docSnap.data();
         if (startTimeMs) {
-          const secFromStart = Math.max(0, (d.ts - startTimeMs) / 1000);
-          dataset.push({ x: secFromStart / 60, y: d.co2, data: d, id: docSnap.id });
+          datasetRealtime.push({ x: Math.max(0, (d.ts - startTimeMs)/1000/60), y: d.co2, data: d, id: docSnap.id });
         }
         if (d.ts > maxTs) { maxTs = d.ts; latestDoc = d; }
       });
-
-      dataset.sort((a,b) => a.x - b.x);
-      redrawChart();
+      datasetRealtime.sort((a,b) => a.x - b.x);
+      redrawChartRealtime();
 
       if (latestDoc) {
         document.getElementById('co2').textContent = Math.round(latestDoc.co2);
         document.getElementById('temp').textContent = latestDoc.temp ? latestDoc.temp.toFixed(1) : '--';
         document.getElementById('rh').textContent = latestDoc.rh ? latestDoc.rh.toFixed(1) : '--';
         document.getElementById('ts').textContent = new Date(latestDoc.ts).toLocaleString();
-        updateRisk(latestDoc.co2);
-        
-        if(latestDoc.expName) expNameInput.value = latestDoc.expName;
+        updateRiskUI(latestDoc.co2);
+        if(latestDoc.expName) document.getElementById('expName').value = latestDoc.expName;
       }
-    }, (error) => console.error("Records Listener Error:", error));
+    });
   }
 
-  selExp.addEventListener('change', (e) => {
-    switchExperiment(e.target.value);
+  document.getElementById('selExp').addEventListener('change', (e) => {
+    switchExperimentRealtime(e.target.value);
     updateDoc(getStateRef(), { expKey: e.target.value });
   });
 
-  // ==========================================
-  // 6. 控制按鈕操作
-  // ==========================================
-  btnStart.addEventListener('click', async () => {
-    const newStartTime = Date.now();
-    await setDoc(getStateRef(), { 
-      gate: 'on', 
-      expKey: currentExp, 
-      expName: expNameInput.value || selExp.options[selExp.selectedIndex].text,
-      startTimeMs: newStartTime 
-    }, { merge: true });
+  document.getElementById('btnStart').addEventListener('click', async () => {
+    await setDoc(getStateRef(), { gate: 'on', expKey: currentExp, expName: document.getElementById('expName').value || document.getElementById('selExp').options[document.getElementById('selExp').selectedIndex].text, startTimeMs: Date.now() }, { merge: true });
     showFloat('ok', '開始接收數據');
   });
 
-  btnPause.addEventListener('click', async () => {
+  document.getElementById('btnPause').addEventListener('click', async () => {
     await updateDoc(getStateRef(), { gate: 'off' });
     showFloat('info', '已暫停接收，正在同步備份...');
-    await performSync();
+    performSync();
   });
 
   document.getElementById('btnClear').addEventListener('click', async () => {
     if (isGateOn) { showFloat('err', '請先暫停再清空'); return; }
-    
-    const ok = await confirmModal('確定清空?', `將刪除「${selExp.options[selExp.selectedIndex].text}」的所有系統記錄。`);
+    const ok = await confirmModal('確定清空?', `將刪除「${document.getElementById('selExp').options[document.getElementById('selExp').selectedIndex].text}」的所有系統記錄。`);
     if (!ok) return;
 
-    // 清空主系統
-    const colRef = getRecordsRef(currentExp);
-    const snap = await getDocs(colRef);
+    const snap = await getDocs(getRecordsRef(currentExp));
     const batch = writeBatch(db);
     snap.forEach(docSnap => batch.delete(docSnap.ref));
     await batch.commit();
-
-    // 清空備份系統
-    try {
-      fetch(`${GAS_URL}?action=clear&exp=${currentExp}`);
-    } catch(e) {} 
-
+    try { fetch(`${GAS_URL}?action=clear&exp=${currentExp}`); } catch(e) {} 
+    
     await updateDoc(getStateRef(), { startTimeMs: null });
-    document.getElementById('co2').textContent = '--';
-    document.getElementById('ts').textContent = '--';
-    updateRisk(null);
-    dataset.length = 0;
-    redrawChart();
-    showFloat('ok', '已清空資料');
+    document.getElementById('co2').textContent = '--'; document.getElementById('ts').textContent = '--'; updateRiskUI(null);
+    datasetRealtime.length = 0; redrawChartRealtime(); showFloat('ok', '已清空資料');
   });
-  
-  btnRedraw.addEventListener('click', () => {
+
+  document.getElementById('btnRedraw').addEventListener('click', () => {
     if (isGateOn) { showFloat('err', '實驗中，無法重繪'); return; }
-    redrawChart();
-    showFloat('ok', '圖表已重新整理');
+    redrawChartRealtime(); showFloat('ok', '圖表已重新整理');
   });
 
-  document.getElementById('btnMerge').addEventListener('click', () => {
-    // 您可以把這裡替換為開啟趨勢圖網頁的語法，例如： window.open('趨勢圖網址.html', '_blank');
-    showFloat('info', '趨勢圖功能準備中...', 3);
-  });
-
-  // ==========================================
-  // 7. 背景同步機制與倒數計時
-  // ==========================================
-  
-  // 剩餘時間倒數計時器
-  setInterval(() => {
-    if (isGateOn && startTimeMs) {
-      const usedSec = (Date.now() - startTimeMs) / 1000;
-      const remainSec = Math.max(0, Math.floor(DUR_MIN * 60 - usedSec));
-      document.getElementById('remain').textContent = `剩餘：${remainSec} 秒`;
-
-      if (remainSec === 0) {
-        updateDoc(getStateRef(), { gate: 'off' });
-        showFloat('info', '已達設定時長，自動停止並同步備份...', 4);
-        performSync();
-      }
-    } else {
-      document.getElementById('remain').textContent = `剩餘：-- 秒`;
-    }
-  }, 1000);
-
+  // Background Sync
   let isSyncing = false;
   async function performSync() {
     if (!auth.currentUser || isSyncing) return;
@@ -494,68 +485,173 @@
     try {
       const snap = await getDocs(getRecordsRef(currentExp));
       const pendingSync = [];
-      
-      snap.forEach(docSnap => {
-        const data = docSnap.data();
-        if (data.synced !== true) {
-          pendingSync.push({ id: docSnap.id, ...data });
-        }
-      });
+      snap.forEach(docSnap => { if (docSnap.data().synced !== true) pendingSync.push({ id: docSnap.id, ...docSnap.data() }); });
 
+      const d2D = document.getElementById('db2Dot'), d2T = document.getElementById('db2Text');
       if (pendingSync.length > 0) {
-        db2Dot.className = 'dot yellow';
-        db2Text.textContent = `備份系統: 同步中(${pendingSync.length})`;
-        
-        const res = await fetch(GAS_URL, {
-          method: 'POST',
-          body: JSON.stringify({ action: 'sync_batch', expKey: currentExp, records: pendingSync })
-        });
-        const result = await res.json();
-        
-        if (result.ok) {
+        d2D.className = 'dot yellow'; d2T.textContent = `備份系統: 同步中(${pendingSync.length})`;
+        const res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'sync_batch', expKey: currentExp, records: pendingSync }) });
+        if ((await res.json()).ok) {
            const batch = writeBatch(db);
-           pendingSync.forEach(record => {
-              const ref = doc(db, 'artifacts', appId, 'public', 'data', `records_${currentExp}`, record.id);
-              batch.update(ref, { synced: true });
-           });
+           pendingSync.forEach(r => batch.update(doc(db, 'artifacts', appId, 'public', 'data', `records_${currentExp}`, r.id), { synced: true }));
            await batch.commit();
-           
-           db2Dot.className = 'dot green';
-           db2Text.textContent = '備份系統: 已同步';
+           d2D.className = 'dot green'; d2T.textContent = '備份系統: 已同步';
         }
       } else {
-        db2Dot.className = 'dot green';
-        db2Text.textContent = '備份系統: 已同步';
+        d2D.className = 'dot green'; d2T.textContent = '備份系統: 已同步';
       }
     } catch (e) {
-      db2Dot.className = 'dot red';
-      db2Text.textContent = '備份系統: 連線異常';
-    } finally {
-      isSyncing = false;
-    }
+      document.getElementById('db2Dot').className = 'dot red'; document.getElementById('db2Text').textContent = '備份系統: 連線異常';
+    } finally { isSyncing = false; }
   }
-
-  // 備份系統同步 (30 秒一次)
   setInterval(performSync, 30000);
 
+  setInterval(() => {
+    if (isGateOn && startTimeMs) {
+      const remainSec = Math.max(0, Math.floor(DUR_MIN_REALTIME * 60 - ((Date.now() - startTimeMs) / 1000)));
+      document.getElementById('remain').textContent = `剩餘：${remainSec} 秒`;
+      if (remainSec === 0) { updateDoc(getStateRef(), { gate: 'off' }); showFloat('info', '已達時長，自動停止並同步', 4); performSync(); }
+    } else document.getElementById('remain').textContent = `剩餘：-- 秒`;
+  }, 1000);
+
   // ==========================================
-  // 8. 測試模擬用
+  // 5. View 2: 趨勢比較邏輯
   // ==========================================
-  document.getElementById('btnSimulate').addEventListener('click', async () => {
-    if (!isGateOn) { showFloat('err', '請先按開始'); return; }
-    const now = Date.now();
-    const fakeData = {
-      ts: now,
-      co2: 400 + Math.random() * 800,
-      temp: 25 + Math.random() * 5,
-      rh: 50 + Math.random() * 20,
-      expName: expNameInput.value || "未命名",
-      synced: false 
-    };
-    await addDoc(getRecordsRef(currentExp), fakeData);
+  const chartTrend = new Chart(document.getElementById('chartTrend').getContext('2d'), {
+    type:'line', data:{ datasets:[] },
+    options:{
+      responsive:true, animation:false, parsing:false, maintainAspectRatio: false,
+      layout:{ padding:{ right:90 }}, 
+      scales:{
+        x:{ type:'linear', min:0, max:120, title:{display:true, text:'分鐘 (min)'} },
+        y:{ beginAtZero:false, suggestedMin:350, suggestedMax:1100, grace:'5%', ticks:{ callback:v=>`${Number(v).toLocaleString()} PPM` } }
+      },
+      plugins:{
+        legend:{ display:true, labels:{ font:{ size:18 } } },
+        riskLines:{ thresholds: riskThresholds },
+        decimation:{ enabled:true, algorithm:'min-max' },
+        midLabel:{} // configured in plugin defaults
+      },
+      elements:{ point:{ radius:1.5 } }
+    }
   });
 
-  initFirebaseApp();
+  function getSelectedExpsTrend(){ return Array.from(document.querySelectorAll('input[name="chkExp"]:checked')).map(el => el.value); }
+
+  async function loadNamesTrend(source) {
+    try {
+      if (source === 'sheet') {
+        const r = await fetch(`${GAS_URL}?action=names`);
+        if((await r.json()).ok) updateTrendLabels(r.names);
+      } else {
+        if (!isAuthReady) return;
+        const names = {};
+        for (let key of KEYS) {
+           const snap = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', `records_${key}`));
+           let found = false;
+           snap.forEach(d => { if (!found && d.data().expName) { names[key] = d.data().expName; found = true; } });
+        }
+        updateTrendLabels(names);
+      }
+    } catch(e) {}
+  }
+
+  function updateTrendLabels(namesObj) {
+    if(!namesObj) return;
+    KEYS.forEach((k, i)=>{
+      const label = document.querySelector(`input[name="chkExp"][value="${k}"]`)?.parentElement;
+      if (label) label.lastChild.nodeValue = ' ' + `${i+1}.${(namesObj[k] || '').trim() || `實驗${i+1}`}`;
+    });
+  }
+
+  async function loadAndDrawTrend(){
+    const dur = Number(document.getElementById('selDurTrend').value || 120);
+    const exps = getSelectedExpsTrend();
+    const source = document.getElementById('selSource').value;
+    const loading = document.getElementById('loadingTrend');
+    
+    if (!exps.length){ chartTrend.data.datasets = []; chartTrend.update(); return; }
+    loading.style.display = 'inline';
+    
+    try {
+      let seriesData = [];
+      if (source === 'sheet') {
+         const r = await fetch(`${GAS_URL}?action=rows&dur=${dur}&exps=${encodeURIComponent(exps.join(','))}`);
+         const j = await r.json();
+         seriesData = j.ok ? j.series : [];
+      } else {
+         if (!isAuthReady) return;
+         for (let exp of exps) {
+            const snap = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', `records_${exp}`));
+            const docs = []; snap.forEach(d => docs.push(d.data()));
+            if (docs.length === 0) continue;
+            docs.sort((a,b) => a.ts - b.ts);
+            const minTs = docs[0].ts, points = [];
+            let expName = `實驗${exp.replace('exp','')}`;
+            for(let d of docs) { if(d.expName) { expName = d.expName; break; } }
+            for(let d of docs) { const sec = (d.ts - minTs)/1000; if(sec <= dur*60) points.push([sec, d.co2]); }
+            seriesData.push({ key: exp, name: expName, points });
+         }
+      }
+
+      chartTrend.data.datasets = [];
+      seriesData.forEach((s) => {
+        const color = COLORS[KEYS.indexOf(s.key)] || '#888';
+        const points = (Array.isArray(s.points) ? s.points : []).map(p => ({ x: Number(p[0]) / 60, y: Number(p[1]) })).sort((a,b) => a.x - b.x);
+        chartTrend.data.datasets.push({ label: (s.name||'').trim() || `實驗${KEYS.indexOf(s.key)+1}`, data: points, borderColor: color, backgroundColor: color, borderWidth: 2, tension: .2, fill: false });
+      });
+
+      chartTrend.options.scales.x.max = dur;
+      const vals = chartTrend.data.datasets.flatMap(ds => ds.data.map(p=>p.y));
+      if(vals.length) {
+        const min = Math.min(...vals), max = Math.max(...vals), pad = Math.max(50, Math.round((max-min)*0.12));
+        chartTrend.options.scales.y.suggestedMin = Math.max(0, Math.min(350, Math.floor(min - pad)));
+        chartTrend.options.scales.y.suggestedMax = Math.max(1100, Math.ceil(max + pad));
+      }
+      chartTrend.update();
+    } finally { loading.style.display = 'none'; }
+  }
+
+  document.getElementById('btnReloadTrend').addEventListener('click', loadAndDrawTrend);
+  document.getElementById('selDurTrend').addEventListener('change', loadAndDrawTrend);
+  document.getElementById('selSource').addEventListener('change', (e) => { loadNamesTrend(e.target.value); loadAndDrawTrend(); });
+  document.querySelectorAll('input[name="chkExp"]').forEach(el => el.addEventListener('change', loadAndDrawTrend));
+
+  // ==========================================
+  // 6. 畫面切換控制 & 初始化
+  // ==========================================
+  document.getElementById('btnSwitchToTrend').addEventListener('click', () => {
+    document.getElementById('viewRealtime').classList.remove('active');
+    document.getElementById('viewTrend').classList.add('active');
+    loadNamesTrend(document.getElementById('selSource').value);
+    loadAndDrawTrend();
+  });
+  
+  document.getElementById('btnBackToRealtime').addEventListener('click', () => {
+    document.getElementById('viewTrend').classList.remove('active');
+    document.getElementById('viewRealtime').classList.add('active');
+  });
+
+  async function initApp() {
+    try {
+      if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token);
+      else await signInAnonymously(auth);
+    } catch (err) {
+      document.getElementById('db1Dot').className = 'dot red'; document.getElementById('db1Text').textContent = '主系統: 授權失敗';
+    }
+    
+    onAuthStateChanged(auth, user => {
+      if (user) {
+        isAuthReady = true;
+        document.getElementById('db1Dot').className = 'dot green'; document.getElementById('db1Text').textContent = '主系統: 已連線';
+        listenToState(); switchExperimentRealtime(selExp.value);
+      } else {
+        document.getElementById('db1Dot').className = 'dot red'; document.getElementById('db1Text').textContent = '主系統: 斷線';
+      }
+    });
+  }
+
+  initApp();
 </script>
 </body>
 </html>
