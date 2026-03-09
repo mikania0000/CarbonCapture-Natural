@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>環境二氧化碳即時看板 - 自然碳匯</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root{ --wrap:960px; --fs-title:45px; --fs-msg:26px; --fs-num:56px; --fs-sub:20px;
+         --radius:18px; --page:#f7f8fa; --card:#fff; --text:#1f2937; --shadow:0 10px 24px rgba(0,0,0,.08);
+         --ok:#16a34a; --err:#dc2626; --info:#2563eb; }
+  body{margin:0; font-family:system-ui,-apple-system,"Noto Sans TC",sans-serif; background:var(--page); color:var(--text);}
+  .wrap{max-width:var(--wrap); margin:28px auto; padding:0 16px;}
+  .card{background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:20px 24px;}
+  .title{font-size:var(--fs-title); font-weight:800; letter-spacing:.5px; margin:6px 0 12px; text-align:center;}
+  .grid{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  @media(max-width: 768px) { .grid { grid-template-columns: 1fr; } }
+  .big{display:flex; align-items:center; justify-content:center; height:160px;}
+  .big .num{font-size:var(--fs-num); font-weight:900; margin-right:14px; font-variant-numeric: tabular-nums;}
+  .big .unit{font-size:var(--fs-sub); color:#475569; align-self:flex-end; margin-bottom:10px;}
+  .sub{color:#475569; font-size:var(--fs-sub); margin-top:6px;}
+  canvas{width:100%; height:360px;}
+  .led{display:inline-flex; align-items:center; gap:10px; font-weight:700;}
+  .dot{width:16px; height:16px; border-radius:50%; box-shadow:0 0 0 3px rgba(0,0,0,.06) inset;}
+  .dot.red{background:#ef4444;} .dot.green{background:#16a34a;} .dot.gray{background:#cbd5e1;}
+  
+  .btn{border:none; border-radius:12px; padding:12px 20px; font-weight:800; cursor:pointer; box-shadow:0 4px 6px rgba(0,0,0,.05); font-size:18px; line-height:1; transition:0.2s;}
+  .btn:active{transform:translateY(2px);}
+  .btn:disabled{opacity:0.5; cursor:not-allowed;}
+  .btn-green{background:#16a34a; color:#fff;} .btn-red{background:#ef4444; color:#fff;}
+  .btn-yellow{background:#f59e0b; color:#111;} .btn-deep{background:#065f46; color:#fff;}
+  .btn-pink{background:#ec4899; color:#fff;} .btn-gray{background:#9ca3af; color:#111;}
+
+  .float-msg{position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); color:#fff; font-size:var(--fs-msg); font-weight:800; padding:14px 22px; border-radius:99px; white-space:nowrap; box-shadow:var(--shadow); opacity:0; pointer-events:none; transition:.2s; z-index:9999;}
+  .float-show{opacity:1; transform:translate(-50%,-50%) scale(1.02);}
+  .ok{background:var(--ok);} .err{background:var(--err);} .info{background:var(--info);}
+  
+  .controls{display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-top:16px;}
+  .controls select, .controls input{font-size:18px; padding:8px 12px; border-radius:8px; border:1px solid #cbd5e1;}
+  .title-3d{background:linear-gradient(180deg,#2f3d52 0%,#142133 100%); -webkit-background-clip:text; color:transparent; text-shadow:0 2px 4px rgba(0,0,0,.15);}
+  .risk { display:flex; align-items:center; gap:10px; margin-top:6px; }
+  .risk-dot{ width:30px; height:30px; border-radius:50%; box-shadow:0 0 0 4px rgba(0,0,0,.06) inset, 0 0 0 2px rgba(0,0,0,.05); }
+  .risk-text{ font-size: var(--fs-sub); color:#475569; font-weight:700; }
+  
+  /* Modal */
+  .modal-backdrop{ position:fixed; inset:0; background:rgba(0,0,0,.35); display:none; align-items:center; justify-content:center; z-index:10000; }
+  .modal{ background:#fff; border-radius:16px; box-shadow:var(--shadow); max-width:400px; width:90%; padding:24px; text-align:center; }
+  .modal h3{ margin:0 0 12px; font-size:24px; }
+  .modal p{ margin:0 0 20px; font-size:18px; color:#4b5563;}
+  .modal .row{ display:flex; gap:12px; justify-content:center; }
+  
+  /* 同步狀態指示 */
+  .sync-badge { font-size: 14px; padding: 4px 10px; border-radius: 99px; font-weight: 700; margin-left: auto; }
+  .sync-ok { background: #dcfce7; color: #166534; }
+  .sync-pending { background: #fef9c3; color: #854d0e; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="title">
+        <span class="title-3d">環境二氧化碳即時看板 (自然碳匯)</span>
+        <span style="font-size: 16px; color: #9ca3af; font-weight: normal; margin-left: 8px; vertical-align: bottom;">V.20260309.1</span>
+      </div>
+      <div class="grid">
+        <div class="card">
+          <div class="sub">最新數據 (來自 Firebase)</div>
+          <div class="big">
+            <div id="co2" class="num">--</div>
+            <div class="unit">PPM</div>
+          </div>
+          <div class="risk">
+            <span id="riskDot" class="risk-dot" title="危險等級"></span>
+            <span id="riskText" class="risk-text">--</span>
+          </div>
+          <div class="sub">溫度 <span id="temp">--</span> ℃　｜　濕度 <span id="rh">--</span> %</div>
+          <div id="ts" class="sub" style="font-size: 14px; margin-top:10px;">--</div>
+        </div>
+        
+        <div class="card">
+          <div class="sub" style="display:flex; justify-content:space-between;">
+            狀態
+            <span id="syncBadge" class="sync-badge sync-ok">已同步至試算表</span>
+          </div>
+          <div class="big" style="flex-direction:column; gap:10px;">
+            <div id="status" class="num" style="font-size:32px">讀取中...</div>
+            <div class="led"><span id="ledDot" class="dot gray"></span><span id="ledText" class="sub">等待連線</span></div>
+          </div>
+          <div class="sub">Firebase 即時推播</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <div id="chartTitle" class="sub" style="margin-bottom:8px">近 10 分鐘 CO₂ 濃度趨勢</div>
+      <canvas id="chart"></canvas>
+
+      <div class="controls">
+        <label class="sub">時間視窗：</label>
+        <select id="selDur">
+          <option value="10" selected>10 分鐘</option>
+          <option value="30">30 分鐘</option>
+          <option value="60">60 分鐘</option>
+          <option value="120">120 分鐘</option>
+        </select>
+
+        <label class="sub">實驗：</label>
+        <select id="selExp">
+          <option value="exp1" selected>實驗1</option><option value="exp2">實驗2</option>
+          <option value="exp3">實驗3</option><option value="exp4">實驗4</option>
+          <option value="exp5">實驗5</option><option value="exp6">實驗6</option>
+          <option value="exp7">實驗7</option><option value="exp8">實驗8</option>
+          <option value="exp9">實驗9</option><option value="exp10">實驗10</option>
+        </select>
+
+        <input id="expName" type="text" placeholder="實驗名稱" style="min-width:180px;"/>
+
+        <button id="btnStart" type="button" class="btn btn-green">開始</button>
+        <button id="btnPause" type="button" class="btn btn-red" style="display:none;">暫停</button>
+        <button id="btnClear" type="button" class="btn btn-deep">清空數據</button>
+        <button id="btnMerge" type="button" class="btn btn-gray">開啟試算表</button>
+        
+        <!-- 開發者測試按鈕 (正式環境可隱藏) -->
+        <button id="btnSimulate" type="button" class="btn btn-yellow" style="margin-left:auto; font-size:14px; padding:8px;">模擬送資料</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="float" class="float-msg"></div>
+
+  <!-- Modal -->
+  <div id="modalBackdrop" class="modal-backdrop">
+    <div class="modal">
+      <h3 id="modalTitle">確認</h3>
+      <p id="modalMsg">—</p>
+      <div class="row">
+        <button id="btnCancelModal" class="btn btn-gray">取消</button>
+        <button id="btnOkModal" class="btn btn-red">確定</button>
+      </div>
+    </div>
+  </div>
+
+<script type="module">
+  // ==========================================
+  // 1. Firebase & GAS 設定
+  // ==========================================
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+  import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+  import { getFirestore, collection, doc, setDoc, getDoc, onSnapshot, addDoc, updateDoc, writeBatch, deleteDoc, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+  // ★ 已更新為您最新的 Google Apps Script 部署網址 ★
+  const GAS_URL = "https://script.google.com/macros/s/AKfycbwg6cdyhiKeXSQp3lCf3mwWXtUYu05jJ9EWfxm0vctJeMd4FYh-s5QmsJDhFlp9ctQ7/exec"; 
+  const SHEET_URL = "https://docs.google.com/spreadsheets/d/1kt-NZ14QufN6LLpjjo2AmOL3wTeQeHpoZQbGvwBpOtE/edit";
+
+  // Canvas 環境自動變數 (GitHub Pages 請使用您自己的 firebaseConfig)
+  const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+      // 若放在自己的 GitHub Pages 上，請務必在此貼上您的 Firebase Config
+      /* apiKey: "...", authDomain: "...", projectId: "...", ... */
+  };
+  const appId = typeof __app_id !== 'undefined' ? __app_id : 'co2-monitor-dual';
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  // ==========================================
+  // 2. 全域變數與 UI 元素
+  // ==========================================
+  let DUR_MIN = 10;
+  let currentExp = 'exp1';
+  let isGateOn = false;
+  let startTimeMs = null;
+  let dataset = []; // 圖表資料
+  let unsubscribeRecords = null;
+  let unsubscribeState = null;
+
+  const selExp = document.getElementById('selExp');
+  const expNameInput = document.getElementById('expName');
+  const btnStart = document.getElementById('btnStart');
+  const btnPause = document.getElementById('btnPause');
+
+  // ==========================================
+  // 3. 輔助 UI 函式
+  // ==========================================
+  function showFloat(type, text, seconds=2){
+    const map={ok:'✅ ',err:'❌ ',info:'💡 '};
+    const el=document.getElementById('float');
+    el.className='float-msg '+type;
+    el.textContent=map[type]+text;
+    el.classList.add('float-show');
+    setTimeout(() => el.classList.remove('float-show'), seconds*1000);
+  }
+
+  function confirmModal(title, msg) {
+    return new Promise(resolve => {
+      document.getElementById('modalTitle').textContent = title;
+      document.getElementById('modalMsg').textContent = msg;
+      const backdrop = document.getElementById('modalBackdrop');
+      const btnOk = document.getElementById('btnOkModal');
+      const btnCancel = document.getElementById('btnCancelModal');
+      
+      backdrop.style.display = 'flex';
+      
+      const cleanup = () => { backdrop.style.display = 'none'; };
+      btnOk.onclick = () => { cleanup(); resolve(true); };
+      btnCancel.onclick = () => { cleanup(); resolve(false); };
+    });
+  }
+
+  function updateRisk(ppm){
+    const dot=document.getElementById('riskDot'), txt=document.getElementById('riskText');
+    if (ppm==null || isNaN(ppm)){ dot.style.background='#cbd5e1'; txt.textContent='--'; return; }
+    const info = ppm<=450 ? {t:'健康',c:'#22c55e'} : ppm<=700 ? {t:'可接受',c:'#84cc16'}
+               : ppm<=1000? {t:'稍悶',c:'#eab308'} : ppm<=2500? {t:'困倦',c:'#f59e0b'}
+               : ppm<=5000? {t:'不利健康',c:'#f97316'} : {t:'請勿久待',c:'#ef4444'};
+    dot.style.background=info.c; 
+    txt.textContent=`${Math.round(ppm)} ppm｜${info.t}`;
+  }
+
+  // ==========================================
+  // 4. 圖表設定 (Chart.js)
+  // ==========================================
+  const ctx = document.getElementById('chart').getContext('2d');
+  const chart = new Chart(ctx,{
+    type:'line',
+    data:{ datasets:[{ label:'CO₂ (PPM)', data: dataset, borderColor:'#2563eb', tension:.2, fill:false, spanGaps:true }]},
+    options:{
+      responsive:true, animation:false, maintainAspectRatio: false,
+      scales:{
+        x:{ type:'linear', min:0, max:DUR_MIN, title:{ display:true, text:'分鐘 (min)' } },
+        y:{ suggestedMin:350, suggestedMax:1000 }
+      },
+      plugins:{ legend:{ display:false } }
+    }
+  });
+
+  function redrawChart(){
+    chart.options.scales.x.max = DUR_MIN;
+    document.getElementById('chartTitle').textContent = `近 ${DUR_MIN} 分鐘 CO₂ 濃度趨勢 (0~${DUR_MIN}分)`;
+    
+    // 自動調整 Y 軸
+    const vals = dataset.map(p=>p.y);
+    if(vals.length > 0) {
+       chart.options.scales.y.suggestedMin = Math.max(0, Math.min(...vals) - 100);
+       chart.options.scales.y.suggestedMax = Math.max(...vals) + 100;
+    }
+    chart.update();
+  }
+
+  document.getElementById('selDur').addEventListener('change', (e) => {
+    DUR_MIN = Number(e.target.value);
+    redrawChart();
+  });
+
+  // ==========================================
+  // 5. Firebase 核心邏輯
+  // ==========================================
+  // 取得全域狀態文件參照
+  const getStateRef = () => doc(db, 'artifacts', appId, 'public', 'data', 'config', 'global_state');
+  // 取得指定實驗的資料夾參照
+  const getRecordsRef = (exp) => collection(db, 'artifacts', appId, 'public', 'data', `records_${exp}`);
+
+  async function initFirebaseApp() {
+    try {
+      if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+        await signInWithCustomToken(auth, __initial_auth_token);
+      } else {
+        await signInAnonymously(auth);
+      }
+    } catch (err) {
+      console.error("Auth Error:", err);
+    }
+    
+    onAuthStateChanged(auth, user => {
+      if (user) {
+        listenToState();
+        switchExperiment(selExp.value);
+      }
+    });
+  }
+
+  // 監聽全域狀態 (Start/Pause)
+  function listenToState() {
+    if (unsubscribeState) unsubscribeState();
+    unsubscribeState = onSnapshot(getStateRef(), (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data();
+        isGateOn = data.gate === 'on';
+        startTimeMs = data.startTimeMs || null;
+        
+        // UI 更新
+        if (isGateOn) {
+          btnStart.style.display = 'none';
+          btnPause.style.display = 'inline-block';
+          document.getElementById('status').textContent = '記錄中';
+          document.getElementById('ledDot').className = 'dot green';
+          document.getElementById('ledText').textContent = '傳送中';
+        } else {
+          btnStart.style.display = 'inline-block';
+          btnPause.style.display = 'none';
+          document.getElementById('status').textContent = '已暫停';
+          document.getElementById('ledDot').className = 'dot red';
+          document.getElementById('ledText').textContent = '未記錄';
+        }
+
+        // 若其他人改變了實驗，跟著切換
+        if (data.expKey && data.expKey !== currentExp) {
+           selExp.value = data.expKey;
+           switchExperiment(data.expKey);
+        }
+      } else {
+        // 初始化 state
+        setDoc(getStateRef(), { gate: 'off', expKey: 'exp1', expName: '實驗1', startTimeMs: null });
+      }
+    }, (error) => console.error("State Listener Error:", error));
+  }
+
+  // 切換實驗並載入歷史資料
+  async function switchExperiment(exp) {
+    currentExp = exp;
+    dataset.length = 0; // 清空舊圖表
+    redrawChart();
+    
+    // 取消舊監聽
+    if (unsubscribeRecords) unsubscribeRecords();
+
+    // 監聽該實驗的 records
+    unsubscribeRecords = onSnapshot(getRecordsRef(exp), (snapshot) => {
+      let latestDoc = null;
+      let maxTs = 0;
+
+      // 重建整個 dataset (Canvas 環境不適合用 docChanges() 處理複雜邏輯，直接全部重繪最穩)
+      dataset.length = 0;
+      
+      snapshot.forEach(docSnap => {
+        const d = docSnap.data();
+        if (startTimeMs) {
+          const secFromStart = Math.max(0, (d.ts - startTimeMs) / 1000);
+          dataset.push({ x: secFromStart / 60, y: d.co2, data: d, id: docSnap.id });
+        }
+        if (d.ts > maxTs) { maxTs = d.ts; latestDoc = d; }
+      });
+
+      // 排序確保線條正常
+      dataset.sort((a,b) => a.x - b.x);
+      redrawChart();
+
+      // 更新最新數值面板
+      if (latestDoc) {
+        document.getElementById('co2').textContent = Math.round(latestDoc.co2);
+        document.getElementById('temp').textContent = latestDoc.temp ? latestDoc.temp.toFixed(1) : '--';
+        document.getElementById('rh').textContent = latestDoc.rh ? latestDoc.rh.toFixed(1) : '--';
+        document.getElementById('ts').textContent = new Date(latestDoc.ts).toLocaleString();
+        updateRisk(latestDoc.co2);
+        
+        // 更新實驗名稱欄位
+        if(latestDoc.expName) expNameInput.value = latestDoc.expName;
+      }
+    }, (error) => console.error("Records Listener Error:", error));
+  }
+
+  selExp.addEventListener('change', (e) => {
+    switchExperiment(e.target.value);
+    // 順便把狀態更新給所有人
+    updateDoc(getStateRef(), { expKey: e.target.value });
+  });
+
+  // ==========================================
+  // 6. 控制按鈕操作
+  // ==========================================
+  btnStart.addEventListener('click', async () => {
+    // 若沒有 startTime，以現在為準
+    const newStartTime = Date.now();
+    await setDoc(getStateRef(), { 
+      gate: 'on', 
+      expKey: currentExp, 
+      expName: expNameInput.value || selExp.options[selExp.selectedIndex].text,
+      startTimeMs: newStartTime 
+    }, { merge: true });
+    showFloat('ok', '開始接收數據');
+  });
+
+  btnPause.addEventListener('click', async () => {
+    await updateDoc(getStateRef(), { gate: 'off' });
+    showFloat('info', '已暫停接收');
+  });
+
+  document.getElementById('btnClear').addEventListener('click', async () => {
+    if (isGateOn) { showFloat('err', '請先暫停再清空'); return; }
+    
+    const ok = await confirmModal('確定清空?', `將刪除「${selExp.options[selExp.selectedIndex].text}」的所有 Firebase 數據與 Google Sheets 備份。`);
+    if (!ok) return;
+
+    // 1. 清空 Firebase 該 Collection 內的所有文件
+    const colRef = getRecordsRef(currentExp);
+    const snap = await getDocs(colRef);
+    const batch = writeBatch(db);
+    snap.forEach(docSnap => batch.delete(docSnap.ref));
+    await batch.commit();
+
+    // 2. 呼叫 GAS 清空 Google Sheet
+    try {
+      fetch(`${GAS_URL}?action=clear&exp=${currentExp}`);
+    } catch(e) {} // 背景執行即可
+
+    // 3. 重設 startTime
+    await updateDoc(getStateRef(), { startTimeMs: null });
+    document.getElementById('co2').textContent = '--';
+    document.getElementById('ts').textContent = '--';
+    updateRisk(null);
+    dataset.length = 0;
+    redrawChart();
+    showFloat('ok', '已清空資料');
+  });
+
+  document.getElementById('btnMerge').addEventListener('click', () => {
+    window.open(SHEET_URL, '_blank');
+  });
+
+  // ==========================================
+  // 7. 背景同步機制 (Firebase -> Google Sheets)
+  // ==========================================
+  // 每 15 秒檢查一次是否有未同步的資料
+  setInterval(async () => {
+    if (!auth.currentUser) return;
+    try {
+      const snap = await getDocs(getRecordsRef(currentExp));
+      const pendingSync = [];
+      
+      snap.forEach(docSnap => {
+        const data = docSnap.data();
+        if (data.synced !== true) {
+          pendingSync.push({ id: docSnap.id, ...data });
+        }
+      });
+
+      const badge = document.getElementById('syncBadge');
+      if (pendingSync.length > 0) {
+        badge.className = 'sync-badge sync-pending';
+        badge.textContent = `尚有 ${pendingSync.length} 筆同步中...`;
+        
+        // 發送批次至 GAS
+        const res = await fetch(GAS_URL, {
+          method: 'POST',
+          body: JSON.stringify({ action: 'sync_batch', expKey: currentExp, records: pendingSync })
+        });
+        const result = await res.json();
+        
+        if (result.ok) {
+           // 成功後，將 Firebase 標記為 synced: true
+           const batch = writeBatch(db);
+           pendingSync.forEach(record => {
+              const ref = doc(db, 'artifacts', appId, 'public', 'data', `records_${currentExp}`, record.id);
+              batch.update(ref, { synced: true });
+           });
+           await batch.commit();
+           badge.className = 'sync-badge sync-ok';
+           badge.textContent = '已同步至試算表';
+        }
+      } else {
+        badge.className = 'sync-badge sync-ok';
+        badge.textContent = '已同步至試算表';
+      }
+    } catch (e) {
+      console.log("Sync Background Error (can ignore):", e);
+    }
+  }, 15000);
+
+  // ==========================================
+  // 8. 測試模擬用 (假裝 ESP32 傳送資料)
+  // ==========================================
+  document.getElementById('btnSimulate').addEventListener('click', async () => {
+    if (!isGateOn) { showFloat('err', '請先按開始'); return; }
+    const now = Date.now();
+    const fakeData = {
+      ts: now,
+      co2: 400 + Math.random() * 800,
+      temp: 25 + Math.random() * 5,
+      rh: 50 + Math.random() * 20,
+      expName: expNameInput.value || "未命名",
+      synced: false // 預設未同步
+    };
+    await addDoc(getRecordsRef(currentExp), fakeData);
+  });
+
+  // 啟動 App
+  initFirebaseApp();
+</script>
+</body>
+</html>
