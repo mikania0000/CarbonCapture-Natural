@@ -4,6 +4,8 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>環境二氧化碳即時看板 - 自然碳匯</title>
+<!-- 引入 Google Sign-In 套件 -->
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
   :root{ --wrap:1100px; --fs-title:45px; --fs-msg:26px; --fs-num:56px; --fs-sub:20px;
@@ -64,18 +66,59 @@
   .modal{ background:#fff; border-radius:16px; box-shadow:var(--shadow); max-width:400px; width:90%; padding:24px; text-align:center; }
   .modal h3{ margin:0 0 12px; font-size:24px; }
   .modal p{ margin:0 0 20px; font-size:18px; color:#4b5563;}
+
+  /* Login Overlay */
+  #loginOverlay { position: fixed; inset: 0; background: var(--page); z-index: 99999; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .login-card { background: var(--card); padding: 40px; border-radius: var(--radius); box-shadow: var(--shadow); text-align: center; max-width: 450px; width: 90%; }
+  .line-warning { margin-top: 16px; color: #b91c1c; font-weight: bold; background: #fee2e2; padding: 12px; border-radius: 8px; display: none; text-align: left; font-size: 15px;}
 </style>
 </head>
 <body>
+
+<!-- ==================== 登入遮罩 ==================== -->
+<div id="loginOverlay">
+  <div class="login-card">
+    <div class="title" style="font-size: 32px; margin-bottom: 8px;">環境二氧化碳即時看板</div>
+    <p style="color: #475569; margin-bottom: 24px; font-weight: bold;">請使用 Google 帳號登入系統</p>
+    
+    <!-- Google 登入按鈕 -->
+    <div style="display:flex; justify-content:center;">
+      <div id="g_id_onload"
+           data-client_id="553016940521-araovlp30ctbqn6um5rr49q3es5jm4jg.apps.googleusercontent.com"
+           data-callback="handleGoogleLogin"
+           data-auto_prompt="false">
+      </div>
+      <div class="g_id_signin" 
+           data-type="standard" 
+           data-size="large" 
+           data-theme="outline" 
+           data-text="sign_in_with" 
+           data-shape="rectangular" 
+           data-logo_alignment="left">
+      </div>
+    </div>
+
+    <div id="loginLoading" style="display:none; margin-top:16px; color:var(--info); font-weight:bold; font-size:18px;">
+      正在與白名單驗證中，請稍候...
+    </div>
+
+    <!-- LINE 瀏覽器警告 -->
+    <div id="lineWarning" class="line-warning">
+      ⚠️ 偵測到您使用 LINE 內建瀏覽器。<br><br>Google 登入不支援 LINE，系統正嘗試為您開啟外部瀏覽器...<br><br>若無反應，請點擊右上角的「 ⋮ 」圖示，選擇<b>「以其他瀏覽器開啟」</b>，或點擊下方按鈕複製網址至 Chrome / Safari 開啟。<br>
+      <button id="btnCopyUrl" class="btn btn-gray" style="margin-top: 12px; font-size: 16px; padding: 8px; width: 100%;">🔗 複製網址</button>
+    </div>
+  </div>
+</div>
 
 <div class="wrap">
   
   <!-- ==================== View 1: 即時監測看板 ==================== -->
   <div id="viewRealtime" class="view-section active">
     <div class="card">
-      <div class="title">
+      <div class="title" style="position:relative;">
         <span class="title-3d">環境二氧化碳即時看板 (自然碳匯)</span>
         <span style="font-size: 16px; color: #9ca3af; font-weight: normal; margin-left: 8px; vertical-align: bottom;">V.20260309.2</span>
+        <button id="btnLogout" class="btn btn-gray" style="position:absolute; right:0; top:0; font-size:14px; padding:8px 12px;">登出</button>
       </div>
       <div class="grid">
         <div class="card">
@@ -253,7 +296,7 @@
   const COLORS = ['#ef4444','#10b981','#3b82f6','#f59e0b','#8b5cf6','#06b6d4','#b45309','#6b7280','#ec4899','#14b8a6'];
   const riskThresholds = [ { y:450, c:'#22c55e', t:'450 ppm' }, { y:700, c:'#84cc16', t:'700 ppm' }, { y:1000, c:'#eab308', t:'1000 ppm' } ];
 
-  function showFloat(type, text, seconds=2){
+  function showFloat(type, text, seconds=3){
     const map={ok:'✅ ',err:'❌ ',info:'💡 '};
     const el=document.getElementById('float');
     el.className='float-msg '+type;
@@ -285,7 +328,100 @@
   }
 
   // ==========================================
-  // 3. 圖表共用 Plugins 註冊
+  // 3. 認證登入邏輯 (Google + 白名單 + LocalStorage)
+  // ==========================================
+  
+  // 解析 Google 回傳的 JWT Token 取得 Email
+  function parseJwt(token) {
+    var base64Url = token.split('.')[1];
+    var base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    var jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+    return JSON.parse(jsonPayload);
+  }
+
+  // 登出機制
+  document.getElementById('btnLogout').addEventListener('click', () => {
+     localStorage.removeItem('co2_auth');
+     location.reload();
+  });
+
+  // Google 登入回呼 (需掛載在全域環境)
+  window.handleGoogleLogin = async (response) => {
+    const payload = parseJwt(response.credential);
+    const email = payload.email;
+
+    document.getElementById('loginLoading').style.display = 'block';
+    document.querySelector('.g_id_signin').style.display = 'none';
+
+    try {
+      // 呼叫 GAS 後端驗證白名單
+      const res = await fetch(`${GAS_URL}?action=verify&email=${encodeURIComponent(email)}`);
+      const data = await res.json();
+
+      if (data.ok) {
+        // 驗證成功，儲存狀態至 localStorage (保留 7 天)
+        localStorage.setItem('co2_auth', JSON.stringify({
+          email: email,
+          expiry: Date.now() + 7 * 24 * 60 * 60 * 1000
+        }));
+        document.getElementById('loginOverlay').style.display = 'none';
+        showFloat('ok', `登入成功，歡迎 ${email}`);
+        initApp(); // 啟動主程式
+      } else {
+        showFloat('err', '權限不足：您的信箱不在鳳甲白名單中', 5);
+        document.getElementById('loginLoading').style.display = 'none';
+        document.querySelector('.g_id_signin').style.display = 'block';
+      }
+    } catch (err) {
+      showFloat('err', '驗證連線失敗，請檢查網路狀態');
+      document.getElementById('loginLoading').style.display = 'none';
+      document.querySelector('.g_id_signin').style.display = 'block';
+    }
+  };
+
+  const checkAuth = () => {
+    // 偵測 LINE 內建瀏覽器並嘗試強制使用外部瀏覽器開啟
+    const ua = navigator.userAgent || navigator.vendor || window.opera;
+    if (ua.includes("Line") || ua.includes("LINE")) {
+        // 如果網址尚未包含 openExternalBrowser=1，則加上去並重新導向以觸發 LINE 的外部跳轉機制
+        if (window.location.search.indexOf('openExternalBrowser=1') === -1) {
+            const separator = window.location.href.indexOf('?') === -1 ? '?' : '&';
+            window.location.href = window.location.href + separator + 'openExternalBrowser=1';
+            return; // 中斷後續執行，等待跳轉
+        } else {
+            // 如果加上參數後依然在 LINE 裡面 (iOS 偶爾會發生)，則顯示手動提示與複製按鈕
+            document.getElementById('lineWarning').style.display = 'block';
+            document.querySelector('.g_id_signin').style.display = 'none'; // 隱藏無效的登入按鈕
+            
+            document.getElementById('btnCopyUrl').addEventListener('click', () => {
+                const tempInput = document.createElement('input');
+                tempInput.value = window.location.href.replace(/[?&]openExternalBrowser=1/, '');
+                document.body.appendChild(tempInput);
+                tempInput.select();
+                document.execCommand('copy');
+                document.body.removeChild(tempInput);
+                showFloat('ok', '網址已複製，請至 Safari / Chrome 貼上', 4);
+            });
+            return; // 停在登入畫面，不執行後續登入邏輯
+        }
+    }
+
+    const authData = JSON.parse(localStorage.getItem('co2_auth') || 'null');
+    if (authData && authData.expiry > Date.now()) {
+        // Token 仍在有效期內，隱藏登入介面，直接進入
+        document.getElementById('loginOverlay').style.display = 'none';
+        initApp();
+    } else {
+        // 過期或尚未登入，清除無效資料並等待使用者進行 Google 登入
+        localStorage.removeItem('co2_auth');
+    }
+  };
+
+
+  // ==========================================
+  // 4. 圖表共用 Plugins 註冊
   // ==========================================
   const RiskLinesPlugin = {
     id:'riskLines',
@@ -364,7 +500,7 @@
   Chart.register(RiskLinesPlugin, MidLabelPlugin);
 
   // ==========================================
-  // 4. View 1: 即時監測邏輯
+  // 5. View 1: 即時監測邏輯
   // ==========================================
   let DUR_MIN_REALTIME = 10;
   let currentExp = 'exp1';
@@ -523,7 +659,7 @@
   }, 1000);
 
   // ==========================================
-  // 5. View 2: 趨勢比較邏輯
+  // 6. View 2: 趨勢比較邏輯
   // ==========================================
   const chartTrend = new Chart(document.getElementById('chartTrend').getContext('2d'), {
     type:'line', data:{ datasets:[] },
@@ -626,7 +762,7 @@
   document.querySelectorAll('input[name="chkExp"]').forEach(el => el.addEventListener('change', loadAndDrawTrend));
 
   // ==========================================
-  // 6. 畫面切換控制 & 初始化
+  // 7. 畫面切換控制 & 初始化主程式
   // ==========================================
   document.getElementById('btnSwitchToTrend').addEventListener('click', () => {
     document.getElementById('viewRealtime').classList.remove('active');
@@ -659,7 +795,8 @@
     });
   }
 
-  initApp();
+  // 程式進入點：先進行身分驗證，通過後才會進入 initApp()
+  checkAuth();
 </script>
 </body>
 </html>
