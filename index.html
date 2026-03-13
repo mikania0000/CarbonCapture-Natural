@@ -4,6 +4,16 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>環境二氧化碳即時看板 - 自然碳匯</title>
+
+<!-- 預先定義 Google 登入的回呼函式，避免 GSI 載入時找不到而報錯 -->
+<script>
+  function handleGoogleLogin(response) {
+    if (window.processGoogleLogin) {
+      window.processGoogleLogin(response);
+    }
+  }
+</script>
+
 <!-- 引入 Google Sign-In 套件 -->
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
@@ -59,7 +69,8 @@
   @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
   /* Floating Msg & Modal */
-  .float-msg{position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); color:#fff; font-size:var(--fs-msg); font-weight:800; padding:14px 22px; border-radius:99px; white-space:nowrap; box-shadow:var(--shadow); opacity:0; pointer-events:none; transition:.2s; z-index:9999;}
+  /* 將 z-index 從 9999 改為 999999，讓它不會被登入畫面遮住 */
+  .float-msg{position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); color:#fff; font-size:var(--fs-msg); font-weight:800; padding:14px 22px; border-radius:99px; white-space:nowrap; box-shadow:var(--shadow); opacity:0; pointer-events:none; transition:.2s; z-index:999999;}
   .float-show{opacity:1; transform:translate(-50%,-50%) scale(1.02);}
   .ok{background:var(--ok);} .err{background:var(--err);} .info{background:var(--info);}
   .modal-backdrop{ position:fixed; inset:0; background:rgba(0,0,0,.35); display:none; align-items:center; justify-content:center; z-index:10000; }
@@ -101,6 +112,9 @@
     <div id="loginLoading" style="display:none; margin-top:16px; color:var(--info); font-weight:bold; font-size:18px;">
       正在與白名單驗證中，請稍候...
     </div>
+    
+    <!-- 新增：直接顯示在面板上的專屬錯誤訊息區塊 -->
+    <div id="loginErrorMsg" style="display:none; margin-top:16px; color:var(--err); font-weight:bold; font-size:16px; background:#fee2e2; padding:12px; border-radius:8px;"></div>
 
     <!-- LINE 瀏覽器警告 -->
     <div id="lineWarning" class="line-warning">
@@ -347,12 +361,13 @@
      location.reload();
   });
 
-  // Google 登入回呼 (需掛載在全域環境)
-  window.handleGoogleLogin = async (response) => {
+  // 實際處理 Google 登入的邏輯 (由全域的 handleGoogleLogin 呼叫)
+  window.processGoogleLogin = async (response) => {
     const payload = parseJwt(response.credential);
     const email = payload.email;
 
     document.getElementById('loginLoading').style.display = 'block';
+    document.getElementById('loginErrorMsg').style.display = 'none'; // 每次登入前先隱藏錯誤
     document.querySelector('.g_id_signin').style.display = 'none';
 
     try {
@@ -370,11 +385,17 @@
         showFloat('ok', `登入成功，歡迎 ${email}`);
         initApp(); // 啟動主程式
       } else {
-        showFloat('err', '權限不足：您的信箱不在鳳甲白名單中', 5);
+        // 顯示權限不足的錯誤
+        document.getElementById('loginErrorMsg').textContent = '❌ 登入失敗：您的信箱不在授權白名單中';
+        document.getElementById('loginErrorMsg').style.display = 'block';
+        showFloat('err', '您的信箱不在鳳甲白名單中', 5);
         document.getElementById('loginLoading').style.display = 'none';
         document.querySelector('.g_id_signin').style.display = 'block';
       }
     } catch (err) {
+      // 顯示連線或 GAS 權限異常的錯誤
+      document.getElementById('loginErrorMsg').innerHTML = '❌ 驗證連線失敗<br>請確認系統管理員是否已正確發布 GAS 權限。';
+      document.getElementById('loginErrorMsg').style.display = 'block';
       showFloat('err', '驗證連線失敗，請檢查網路狀態');
       document.getElementById('loginLoading').style.display = 'none';
       document.querySelector('.g_id_signin').style.display = 'block';
