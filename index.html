@@ -69,14 +69,13 @@
   @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
   /* Floating Msg & Modal */
-  /* 將 z-index 從 9999 改為 999999，讓它不會被登入畫面遮住 */
   .float-msg{position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); color:#fff; font-size:var(--fs-msg); font-weight:800; padding:14px 22px; border-radius:99px; white-space:nowrap; box-shadow:var(--shadow); opacity:0; pointer-events:none; transition:.2s; z-index:999999;}
   .float-show{opacity:1; transform:translate(-50%,-50%) scale(1.02);}
   .ok{background:var(--ok);} .err{background:var(--err);} .info{background:var(--info);}
   .modal-backdrop{ position:fixed; inset:0; background:rgba(0,0,0,.35); display:none; align-items:center; justify-content:center; z-index:10000; }
   .modal{ background:#fff; border-radius:16px; box-shadow:var(--shadow); max-width:400px; width:90%; padding:24px; text-align:center; }
   .modal h3{ margin:0 0 12px; font-size:24px; }
-  .modal p{ margin:0 0 20px; font-size:18px; color:#4b5563;}
+  .modal p{ margin:0 0 20px; font-size:18px; color:#4b5563; line-height:1.5;}
 
   /* Login Overlay */
   #loginOverlay { position: fixed; inset: 0; background: var(--page); z-index: 99999; display: flex; flex-direction: column; align-items: center; justify-content: center; }
@@ -131,7 +130,7 @@
     <div class="card">
       <div class="title" style="position:relative;">
         <span class="title-3d">環境二氧化碳即時看板 (自然碳匯)</span>
-        <span style="font-size: 16px; color: #9ca3af; font-weight: normal; margin-left: 8px; vertical-align: bottom;">V.20260309.2</span>
+        <span style="font-size: 16px; color: #9ca3af; font-weight: normal; margin-left: 8px; vertical-align: bottom;">V.20260323.4 (自動偵測版)</span>
         <button id="btnLogout" class="btn btn-gray" style="position:absolute; right:0; top:0; font-size:14px; padding:8px 12px;">登出</button>
       </div>
       <div class="grid">
@@ -205,8 +204,6 @@
         <button id="btnSwitchToTrend" type="button" class="btn btn-pink">📊 趨勢分析</button>
         
         <div id="remain" class="sub" style="margin-left:auto; font-weight:bold; font-size:22px;">剩餘：-- 秒</div>
-        <!-- 開發者測試按鈕 -->
-        <button id="btnSimulate" type="button" class="btn btn-gray" style="font-size:14px; padding:8px 12px; margin-left:10px; display:none;">模擬</button>
       </div>
     </div>
   </div>
@@ -269,6 +266,7 @@
 <div id="modalBackdrop" class="modal-backdrop">
   <div class="modal">
     <h3 id="modalTitle">確認</h3>
+    <!-- 支援 HTML 排版，防呆訊息才能顯示粗體、顏色與換行 -->
     <p id="modalMsg">—</p>
     <div style="display:flex; gap:12px; justify-content:center;">
       <button id="btnCancelModal" class="btn btn-gray">取消</button>
@@ -322,7 +320,8 @@
   function confirmModal(title, msg) {
     return new Promise(resolve => {
       document.getElementById('modalTitle').textContent = title;
-      document.getElementById('modalMsg').textContent = msg;
+      // 使用 innerHTML 來支援文字顏色、粗體與換行
+      document.getElementById('modalMsg').innerHTML = msg;
       const backdrop = document.getElementById('modalBackdrop');
       backdrop.style.display = 'flex';
       
@@ -342,10 +341,9 @@
   }
 
   // ==========================================
-  // 3. 認證登入邏輯 (Google + 白名單 + LocalStorage)
+  // 3. 認證登入邏輯
   // ==========================================
   
-  // 解析 Google 回傳的 JWT Token 取得 Email
   function parseJwt(token) {
     var base64Url = token.split('.')[1];
     var base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
@@ -355,37 +353,32 @@
     return JSON.parse(jsonPayload);
   }
 
-  // 登出機制
   document.getElementById('btnLogout').addEventListener('click', () => {
      localStorage.removeItem('co2_auth');
      location.reload();
   });
 
-  // 實際處理 Google 登入的邏輯 (由全域的 handleGoogleLogin 呼叫)
   window.processGoogleLogin = async (response) => {
     const payload = parseJwt(response.credential);
     const email = payload.email;
 
     document.getElementById('loginLoading').style.display = 'block';
-    document.getElementById('loginErrorMsg').style.display = 'none'; // 每次登入前先隱藏錯誤
+    document.getElementById('loginErrorMsg').style.display = 'none'; 
     document.querySelector('.g_id_signin').style.display = 'none';
 
     try {
-      // 呼叫 GAS 後端驗證白名單
       const res = await fetch(`${GAS_URL}?action=verify&email=${encodeURIComponent(email)}`);
       const data = await res.json();
 
       if (data.ok) {
-        // 驗證成功，儲存狀態至 localStorage (保留 7 天)
         localStorage.setItem('co2_auth', JSON.stringify({
           email: email,
           expiry: Date.now() + 7 * 24 * 60 * 60 * 1000
         }));
         document.getElementById('loginOverlay').style.display = 'none';
         showFloat('ok', `登入成功，歡迎 ${email}`);
-        initApp(); // 啟動主程式
+        initApp(); 
       } else {
-        // 顯示權限不足的錯誤
         document.getElementById('loginErrorMsg').textContent = '❌ 登入失敗：您的信箱不在授權白名單中';
         document.getElementById('loginErrorMsg').style.display = 'block';
         showFloat('err', '您的信箱不在鳳甲白名單中', 5);
@@ -393,7 +386,6 @@
         document.querySelector('.g_id_signin').style.display = 'block';
       }
     } catch (err) {
-      // 顯示連線或 GAS 權限異常的錯誤
       document.getElementById('loginErrorMsg').innerHTML = '❌ 驗證連線失敗<br>請確認系統管理員是否已正確發布 GAS 權限。';
       document.getElementById('loginErrorMsg').style.display = 'block';
       showFloat('err', '驗證連線失敗，請檢查網路狀態');
@@ -403,18 +395,15 @@
   };
 
   const checkAuth = () => {
-    // 偵測 LINE 內建瀏覽器並嘗試強制使用外部瀏覽器開啟
     const ua = navigator.userAgent || navigator.vendor || window.opera;
     if (ua.includes("Line") || ua.includes("LINE")) {
-        // 如果網址尚未包含 openExternalBrowser=1，則加上去並重新導向以觸發 LINE 的外部跳轉機制
         if (window.location.search.indexOf('openExternalBrowser=1') === -1) {
             const separator = window.location.href.indexOf('?') === -1 ? '?' : '&';
             window.location.href = window.location.href + separator + 'openExternalBrowser=1';
-            return; // 中斷後續執行，等待跳轉
+            return; 
         } else {
-            // 如果加上參數後依然在 LINE 裡面 (iOS 偶爾會發生)，則顯示手動提示與複製按鈕
             document.getElementById('lineWarning').style.display = 'block';
-            document.querySelector('.g_id_signin').style.display = 'none'; // 隱藏無效的登入按鈕
+            document.querySelector('.g_id_signin').style.display = 'none'; 
             
             document.getElementById('btnCopyUrl').addEventListener('click', () => {
                 const tempInput = document.createElement('input');
@@ -425,17 +414,15 @@
                 document.body.removeChild(tempInput);
                 showFloat('ok', '網址已複製，請至 Safari / Chrome 貼上', 4);
             });
-            return; // 停在登入畫面，不執行後續登入邏輯
+            return; 
         }
     }
 
     const authData = JSON.parse(localStorage.getItem('co2_auth') || 'null');
     if (authData && authData.expiry > Date.now()) {
-        // Token 仍在有效期內，隱藏登入介面，直接進入
         document.getElementById('loginOverlay').style.display = 'none';
         initApp();
     } else {
-        // 過期或尚未登入，清除無效資料並等待使用者進行 Google 登入
         localStorage.removeItem('co2_auth');
     }
   };
@@ -566,6 +553,7 @@
         document.getElementById('ledDot').className = isGateOn ? 'dot green' : 'dot red';
         document.getElementById('ledText').textContent = isGateOn ? '傳送中' : '未記錄';
 
+        // 即時同步不同裝置或網頁的頻道切換
         if (data.expKey && data.expKey !== currentExp) {
            document.getElementById('selExp').value = data.expKey;
            switchExperimentRealtime(data.expKey);
@@ -607,11 +595,48 @@
 
   document.getElementById('selExp').addEventListener('change', (e) => {
     switchExperimentRealtime(e.target.value);
+    // 更新全域狀態，讓 ESP32 知道換頻道了
     updateDoc(getStateRef(), { expKey: e.target.value });
   });
 
+  // ★ 智慧防呆機制的「開始」按鈕
   document.getElementById('btnStart').addEventListener('click', async () => {
-    await setDoc(getStateRef(), { gate: 'on', expKey: currentExp, expName: document.getElementById('expName').value || document.getElementById('selExp').options[document.getElementById('selExp').selectedIndex].text, startTimeMs: Date.now() }, { merge: true });
+    // 1. 檢查目前實驗頻道是否有舊資料
+    const snap = await getDocs(getRecordsRef(currentExp));
+    if (!snap.empty) {
+      // 2. 發現舊資料，彈出防呆確認視窗
+      const expText = document.getElementById('selExp').options[document.getElementById('selExp').selectedIndex].text;
+      const ok = await confirmModal(
+        '發現舊資料', 
+        `「${expText}」目前已經存在歷史紀錄。<br><br>為確保圖表時間軸繪製正確，<br>是否<b>精準清空此頻道的舊資料</b>並重新開始？<br><span style="font-size:15px; color:#ef4444;">(若選擇取消，將不會啟動接收)</span>`
+      );
+      
+      if (!ok) return; // 使用者選擇取消，終止「開始」的動作
+
+      // 3. 使用者確認，執行清空動作 (同步清除 Firebase 與 Google Sheet 的目前頻道)
+      const batch = writeBatch(db);
+      snap.forEach(docSnap => batch.delete(docSnap.ref));
+      await batch.commit();
+
+      try { fetch(`${GAS_URL}?action=clear&exp=${currentExp}`); } catch(e) {} 
+      
+      // 4. 清空畫面暫存數值
+      await updateDoc(getStateRef(), { startTimeMs: null });
+      document.getElementById('co2').textContent = '--'; 
+      document.getElementById('ts').textContent = '--'; 
+      updateRiskUI(null);
+      datasetRealtime.length = 0; 
+      redrawChartRealtime();
+    }
+
+    // 5. 正式寫入 global_state 啟動閘門，通知 ESP32 開始傳送
+    await setDoc(getStateRef(), { 
+      gate: 'on', 
+      expKey: currentExp, 
+      expName: document.getElementById('expName').value || document.getElementById('selExp').options[document.getElementById('selExp').selectedIndex].text, 
+      startTimeMs: Date.now() 
+    }, { merge: true });
+
     showFloat('ok', '開始接收數據');
   });
 
@@ -626,6 +651,7 @@
     const ok = await confirmModal('確定清空?', `將刪除「${document.getElementById('selExp').options[document.getElementById('selExp').selectedIndex].text}」的所有系統記錄。`);
     if (!ok) return;
 
+    // 精準清除邏輯：只針對 currentExp 操作
     const snap = await getDocs(getRecordsRef(currentExp));
     const batch = writeBatch(db);
     snap.forEach(docSnap => batch.delete(docSnap.ref));
@@ -642,7 +668,7 @@
     redrawChartRealtime(); showFloat('ok', '圖表已重新整理');
   });
 
-  // Background Sync
+  // Background Sync (每 30 秒自動備份目前頻道的資料到 Google Sheet)
   let isSyncing = false;
   async function performSync() {
     if (!auth.currentUser || isSyncing) return;
@@ -695,7 +721,7 @@
         legend:{ display:true, labels:{ font:{ size:18 } } },
         riskLines:{ thresholds: riskThresholds },
         decimation:{ enabled:true, algorithm:'min-max' },
-        midLabel:{} // configured in plugin defaults
+        midLabel:{} 
       },
       elements:{ point:{ radius:1.5 } }
     }
@@ -816,7 +842,7 @@
     });
   }
 
-  // 程式進入點：先進行身分驗證，通過後才會進入 initApp()
+  // 程式進入點
   checkAuth();
 </script>
 </body>
