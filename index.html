@@ -760,7 +760,22 @@
       const d2D = document.getElementById('db2Dot'), d2T = document.getElementById('db2Text');
       if (pendingSync.length > 0) {
         d2D.className = 'dot yellow'; d2T.textContent = `備份系統: 同步中(${pendingSync.length})`;
-        const res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'sync_batch', expKey: currentExp, records: pendingSync }) });
+        
+        // ★ 抓取目前輸入的實驗名稱
+        const currentExpName = document.getElementById('expName').value || document.getElementById('selExp').options[document.getElementById('selExp').selectedIndex].text;
+
+        // ★ 將 expName (名稱) 與 startTime (真實起點) 一起打包傳送給 GAS
+        const res = await fetch(GAS_URL, { 
+          method: 'POST', 
+          body: JSON.stringify({ 
+            action: 'sync_batch', 
+            expKey: currentExp, 
+            expName: currentExpName,
+            startTime: startTimeMs,
+            records: pendingSync 
+          }) 
+        });
+
         if ((await res.json()).ok) {
            const batch = writeBatch(db);
            pendingSync.forEach(r => batch.update(doc(db, 'artifacts', appId, 'public', 'data', `records_${currentExp}`, r.id), { synced: true }));
