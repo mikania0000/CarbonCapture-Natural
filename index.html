@@ -724,7 +724,7 @@
     const batch = writeBatch(db);
     snap.forEach(docSnap => batch.delete(docSnap.ref));
     await batch.commit();
-    try { fetch(`${GAS_URL}?action=clear&exp=${currentExp}`); } catch(e) {} 
+    try { fetch(`${GAS_URL}?action=clear&currentExp`); } catch(e) {} 
     
     await updateDoc(getStateRef(), { startTimeMs: null });
     document.getElementById('co2').textContent = '--'; document.getElementById('ts').textContent = '--'; updateRiskUI(null);
@@ -738,7 +738,13 @@
   });
 
   document.getElementById('btnRedraw').addEventListener('click', () => {
-    redrawChartRealtime(); showFloat('ok', '圖表已重新整理');
+    // 1. 洗掉目前的畫布暫存資料
+    datasetRealtime.length = 0; 
+    // 2. 把預覽時間的起點歸零，讓下一筆資料從 0 分鐘開始畫
+    previewStartTime = null;    
+    // 3. 更新圖表畫面 (會瞬間變空白，等待幾秒後新資料進來)
+    redrawChartRealtime();      
+    showFloat('ok', '畫面已清除，重新開始繪製預覽圖');
   });
 
   // Background Sync
