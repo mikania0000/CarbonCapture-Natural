@@ -130,7 +130,7 @@
     <div class="card">
       <div class="title" style="position:relative;">
         <span class="title-3d">環境二氧化碳即時看板 (自然碳匯)</span>
-        <span style="font-size: 16px; color: #9ca3af; font-weight: normal; margin-left: 8px; vertical-align: bottom;">V.20260323.4 (自動偵測版)</span>
+        <span style="font-size: 16px; color: #9ca3af; font-weight: normal; margin-left: 8px; vertical-align: bottom;">V.20260324.即時預覽版</span>
         <button id="btnLogout" class="btn btn-gray" style="position:absolute; right:0; top:0; font-size:14px; padding:8px 12px;">登出</button>
       </div>
       <div class="grid">
@@ -281,7 +281,7 @@
   // ==========================================
   import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
   import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-  import { getFirestore, collection, doc, setDoc, onSnapshot, addDoc, updateDoc, writeBatch, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+  import { getFirestore, collection, doc, setDoc, onSnapshot, updateDoc, writeBatch, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
   const GAS_URL = "https://script.google.com/macros/s/AKfycbwg6cdyhiKeXSQp3lCf3mwWXtUYu05jJ9EWfxm0vctJeMd4FYh-s5QmsJDhFlp9ctQ7/exec"; 
 
@@ -320,7 +320,6 @@
   function confirmModal(title, msg) {
     return new Promise(resolve => {
       document.getElementById('modalTitle').textContent = title;
-      // 使用 innerHTML 來支援文字顏色、粗體與換行
       document.getElementById('modalMsg').innerHTML = msg;
       const backdrop = document.getElementById('modalBackdrop');
       backdrop.style.display = 'flex';
@@ -343,7 +342,6 @@
   // ==========================================
   // 3. 認證登入邏輯
   // ==========================================
-  
   function parseJwt(token) {
     var base64Url = token.split('.')[1];
     var base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
@@ -371,10 +369,7 @@
       const data = await res.json();
 
       if (data.ok) {
-        localStorage.setItem('co2_auth', JSON.stringify({
-          email: email,
-          expiry: Date.now() + 7 * 24 * 60 * 60 * 1000
-        }));
+        localStorage.setItem('co2_auth', JSON.stringify({ email: email, expiry: Date.now() + 7 * 24 * 60 * 60 * 1000 }));
         document.getElementById('loginOverlay').style.display = 'none';
         showFloat('ok', `登入成功，歡迎 ${email}`);
         initApp(); 
@@ -426,7 +421,6 @@
         localStorage.removeItem('co2_auth');
     }
   };
-
 
   // ==========================================
   // 4. 圖表共用 Plugins 註冊
@@ -508,11 +502,13 @@
   Chart.register(RiskLinesPlugin, MidLabelPlugin);
 
   // ==========================================
-  // 5. View 1: 即時監測邏輯
+  // 5. View 1: 即時監測與預覽邏輯
   // ==========================================
   let DUR_MIN_REALTIME = 10;
   let currentExp = 'exp1';
   let isGateOn = false, startTimeMs = null, datasetRealtime = [];
+  let previewStartTime = null; // ★ 用來記錄即時預覽圖表的起始時間
+
   let unsubscribeRecords = null, unsubscribeState = null;
   const getStateRef = () => doc(db, 'artifacts', appId, 'public', 'data', 'config', 'global_state');
   const getRecordsRef = (exp) => collection(db, 'artifacts', appId, 'public', 'data', `records_${exp}`);
@@ -549,15 +545,44 @@
         
         document.getElementById('btnStart').style.display = isGateOn ? 'none' : 'inline-block';
         document.getElementById('btnPause').style.display = isGateOn ? 'inline-block' : 'none';
-        document.getElementById('status').textContent = isGateOn ? '記錄中' : '已暫停';
-        document.getElementById('ledDot').className = isGateOn ? 'dot green' : 'dot red';
-        document.getElementById('ledText').textContent = isGateOn ? '傳送中' : '未記錄';
+        
+        // 狀態顯示更新：如果是完全新的狀態 (無紀錄且沒按開始)，顯示預覽中
+        const isPreviewing = !isGateOn && !startTimeMs;
+        document.getElementById('status').textContent = isGateOn ? '記錄中' : (startTimeMs ? '已暫停' : '即時預覽中');
+        document.getElementById('ledDot').className = isGateOn ? 'dot green' : 'dot gray';
+        document.getElementById('ledText').textContent = isGateOn ? '正式紀錄儲存中' : (startTimeMs ? '暫停儲存' : '純預覽不儲存');
 
-        // 即時同步不同裝置或網頁的頻道切換
         if (data.expKey && data.expKey !== currentExp) {
            document.getElementById('selExp').value = data.expKey;
            switchExperimentRealtime(data.expKey);
         }
+
+        // ★ 核心魔法：處理來自 ESP32 的即時預覽數據 (即使沒按開始也會有)
+        if (data.live_co2) {
+            // 只要沒有按下「開始」，我們就用即時數據更新面板的大數字
+            if (!isGateOn) {
+                document.getElementById('co2').textContent = Math.round(data.live_co2);
+                document.getElementById('temp').textContent = data.live_temp ? data.live_temp.toFixed(1) : '--';
+                document.getElementById('rh').textContent = data.live_rh ? data.live_rh.toFixed(1) : '--';
+                document.getElementById('ts').textContent = new Date(Number(data.live_ts)).toLocaleString();
+                updateRiskUI(data.live_co2);
+            }
+
+            // 如果是在「即時預覽」狀態，我們把數據塞進本機暫存陣列，畫出預覽圖表
+            if (isPreviewing) {
+                if (!previewStartTime) previewStartTime = Number(data.live_ts);
+                const xMin = Math.max(0, (Number(data.live_ts) - previewStartTime) / 1000 / 60);
+
+                // 避免重複加入同一個時間點
+                if (!datasetRealtime.find(p => p.ts === Number(data.live_ts))) {
+                    datasetRealtime.push({ x: xMin, y: data.live_co2, ts: Number(data.live_ts) });
+                    // 保留記憶體，預覽圖表最多保留 300 個點 (約 25 分鐘)
+                    if (datasetRealtime.length > 300) datasetRealtime.shift();
+                    redrawChartRealtime();
+                }
+            }
+        }
+
       } else {
         setDoc(getStateRef(), { gate: 'off', expKey: 'exp1', expName: '實驗1', startTimeMs: null });
       }
@@ -566,70 +591,69 @@
 
   async function switchExperimentRealtime(exp) {
     currentExp = exp;
-    datasetRealtime.length = 0; redrawChartRealtime();
+    datasetRealtime.length = 0; // 清除畫面
+    previewStartTime = null;    // 重設預覽起點
+    redrawChartRealtime();
+    
     if (unsubscribeRecords) unsubscribeRecords();
 
     unsubscribeRecords = onSnapshot(getRecordsRef(exp), (snapshot) => {
       let latestDoc = null, maxTs = 0;
-      datasetRealtime.length = 0;
-      snapshot.forEach(docSnap => {
-        const d = docSnap.data();
-        if (startTimeMs) {
-          datasetRealtime.push({ x: Math.max(0, (d.ts - startTimeMs)/1000/60), y: d.co2, data: d, id: docSnap.id });
-        }
-        if (d.ts > maxTs) { maxTs = d.ts; latestDoc = d; }
-      });
-      datasetRealtime.sort((a,b) => a.x - b.x);
-      redrawChartRealtime();
+      
+      // ★ 只有在已經「按下開始」產生了正式紀錄時，才用歷史紀錄檔來重建圖表
+      if (startTimeMs) {
+          datasetRealtime.length = 0;
+          snapshot.forEach(docSnap => {
+            const d = docSnap.data();
+            datasetRealtime.push({ x: Math.max(0, (d.ts - startTimeMs)/1000/60), y: d.co2, ts: d.ts, data: d, id: docSnap.id });
+            if (d.ts > maxTs) { maxTs = d.ts; latestDoc = d; }
+          });
+          datasetRealtime.sort((a,b) => a.x - b.x);
+          redrawChartRealtime();
 
-      if (latestDoc) {
-        document.getElementById('co2').textContent = Math.round(latestDoc.co2);
-        document.getElementById('temp').textContent = latestDoc.temp ? latestDoc.temp.toFixed(1) : '--';
-        document.getElementById('rh').textContent = latestDoc.rh ? latestDoc.rh.toFixed(1) : '--';
-        document.getElementById('ts').textContent = new Date(latestDoc.ts).toLocaleString();
-        updateRiskUI(latestDoc.co2);
-        if(latestDoc.expName) document.getElementById('expName').value = latestDoc.expName;
+          if (latestDoc) {
+            document.getElementById('co2').textContent = Math.round(latestDoc.co2);
+            document.getElementById('temp').textContent = latestDoc.temp ? latestDoc.temp.toFixed(1) : '--';
+            document.getElementById('rh').textContent = latestDoc.rh ? latestDoc.rh.toFixed(1) : '--';
+            document.getElementById('ts').textContent = new Date(latestDoc.ts).toLocaleString();
+            updateRiskUI(latestDoc.co2);
+            if(latestDoc.expName) document.getElementById('expName').value = latestDoc.expName;
+          }
       }
     });
   }
 
   document.getElementById('selExp').addEventListener('change', (e) => {
     switchExperimentRealtime(e.target.value);
-    // 更新全域狀態，讓 ESP32 知道換頻道了
     updateDoc(getStateRef(), { expKey: e.target.value });
   });
 
-  // ★ 智慧防呆機制的「開始」按鈕
   document.getElementById('btnStart').addEventListener('click', async () => {
-    // 1. 檢查目前實驗頻道是否有舊資料
     const snap = await getDocs(getRecordsRef(currentExp));
     if (!snap.empty) {
-      // 2. 發現舊資料，彈出防呆確認視窗
       const expText = document.getElementById('selExp').options[document.getElementById('selExp').selectedIndex].text;
       const ok = await confirmModal(
         '發現舊資料', 
         `「${expText}」目前已經存在歷史紀錄。<br><br>為確保圖表時間軸繪製正確，<br>是否<b>精準清空此頻道的舊資料</b>並重新開始？<br><span style="font-size:15px; color:#ef4444;">(若選擇取消，將不會啟動接收)</span>`
       );
-      
-      if (!ok) return; // 使用者選擇取消，終止「開始」的動作
+      if (!ok) return;
 
-      // 3. 使用者確認，執行清空動作 (同步清除 Firebase 與 Google Sheet 的目前頻道)
       const batch = writeBatch(db);
       snap.forEach(docSnap => batch.delete(docSnap.ref));
       await batch.commit();
-
       try { fetch(`${GAS_URL}?action=clear&exp=${currentExp}`); } catch(e) {} 
       
-      // 4. 清空畫面暫存數值
       await updateDoc(getStateRef(), { startTimeMs: null });
       document.getElementById('co2').textContent = '--'; 
       document.getElementById('ts').textContent = '--'; 
       updateRiskUI(null);
-      datasetRealtime.length = 0; 
-      redrawChartRealtime();
     }
 
-    // 5. 正式寫入 global_state 啟動閘門，通知 ESP32 開始傳送
+    // ★ 按下開始時，把預覽圖表歸零，切換為正式紀錄模式
+    previewStartTime = null;
+    datasetRealtime.length = 0;
+    redrawChartRealtime();
+
     await setDoc(getStateRef(), { 
       gate: 'on', 
       expKey: currentExp, 
@@ -637,12 +661,12 @@
       startTimeMs: Date.now() 
     }, { merge: true });
 
-    showFloat('ok', '開始接收數據');
+    showFloat('ok', '開始正式寫入儲存');
   });
 
   document.getElementById('btnPause').addEventListener('click', async () => {
     await updateDoc(getStateRef(), { gate: 'off' });
-    showFloat('info', '已暫停接收，正在同步備份...');
+    showFloat('info', '已暫停紀錄，正在同步備份...');
     performSync();
   });
 
@@ -651,7 +675,6 @@
     const ok = await confirmModal('確定清空?', `將刪除「${document.getElementById('selExp').options[document.getElementById('selExp').selectedIndex].text}」的所有系統記錄。`);
     if (!ok) return;
 
-    // 精準清除邏輯：只針對 currentExp 操作
     const snap = await getDocs(getRecordsRef(currentExp));
     const batch = writeBatch(db);
     snap.forEach(docSnap => batch.delete(docSnap.ref));
@@ -660,15 +683,19 @@
     
     await updateDoc(getStateRef(), { startTimeMs: null });
     document.getElementById('co2').textContent = '--'; document.getElementById('ts').textContent = '--'; updateRiskUI(null);
-    datasetRealtime.length = 0; redrawChartRealtime(); showFloat('ok', '已清空資料');
+    
+    // 清空時也把預覽的資料洗掉
+    previewStartTime = null;
+    datasetRealtime.length = 0; 
+    redrawChartRealtime(); 
+    showFloat('ok', '已清空資料');
   });
 
   document.getElementById('btnRedraw').addEventListener('click', () => {
-    if (isGateOn) { showFloat('err', '實驗中，無法重繪'); return; }
     redrawChartRealtime(); showFloat('ok', '圖表已重新整理');
   });
 
-  // Background Sync (每 30 秒自動備份目前頻道的資料到 Google Sheet)
+  // Background Sync
   let isSyncing = false;
   async function performSync() {
     if (!auth.currentUser || isSyncing) return;
@@ -706,7 +733,7 @@
   }, 1000);
 
   // ==========================================
-  // 6. View 2: 趨勢比較邏輯
+  // 6. View 2: 趨勢比較邏輯 (省略細節，保持原樣)
   // ==========================================
   const chartTrend = new Chart(document.getElementById('chartTrend').getContext('2d'), {
     type:'line', data:{ datasets:[] },
