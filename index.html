@@ -130,7 +130,7 @@
     <div class="card">
       <div class="title" style="position:relative;">
         <span class="title-3d">環境二氧化碳即時看板 (自然碳匯)</span>
-        <span style="font-size: 16px; color: #9ca3af; font-weight: normal; margin-left: 8px; vertical-align: bottom;">V.20260324.硬體狀態版</span>
+        <span style="font-size: 16px; color: #9ca3af; font-weight: normal; margin-left: 8px; vertical-align: bottom;">V.20260324.即時同步繪圖版</span>
         <button id="btnLogout" class="btn btn-gray" style="position:absolute; right:0; top:0; font-size:14px; padding:8px 12px;">登出</button>
       </div>
       <div class="grid">
@@ -161,7 +161,7 @@
             <div class="led" title="長期保存系統"><span id="db2Dot" class="dot gray"></span><span id="db2Text" style="font-size:14px; color:#475569;">備份系統: 待命</span></div>
           </div>
 
-          <!-- ★ 新增：硬體/感測器狀態 -->
+          <!-- 硬體/感測器狀態 -->
           <div class="db-status-bar" style="background:#e0f2fe;">
             <div class="led" title="ESP32 網路連線狀態"><span id="hwWifiDot" class="dot gray"></span><span id="hwWifiText" style="font-size:14px; color:#0369a1;">ESP32: 偵測中</span></div>
             <div class="led" title="SCD41 感測器狀態"><span id="hwScdDot" class="dot gray"></span><span id="hwScdText" style="font-size:14px; color:#0369a1;">SCD41: 偵測中</span></div>
@@ -515,7 +515,10 @@
   let DUR_MIN_REALTIME = 10;
   let currentExp = 'exp1';
   let isGateOn = false, startTimeMs = null, datasetRealtime = [];
-  let previewStartTime = null; // 用來記錄即時預覽圖表的起始時間
+  let previewStartTime = null; 
+
+  // ★ 核心魔法變數：只要網頁一開，預設進入「純預覽模式」(畫圖但不儲存)
+  let isLocalPreview = true;   
 
   let unsubscribeRecords = null, unsubscribeState = null;
   const getStateRef = () => doc(db, 'artifacts', appId, 'public', 'data', 'config', 'global_state');
@@ -543,34 +546,24 @@
 
   document.getElementById('selDurRealtime').addEventListener('change', (e) => { DUR_MIN_REALTIME = Number(e.target.value); redrawChartRealtime(); });
 
-  // ★ 監控硬體狀態的計時器 (每 2 秒檢查一次是否超時未收到心跳)
+  // ★ 監控硬體狀態的計時器
   setInterval(() => {
      const now = Date.now();
      const liveTs = Number(document.getElementById('ts').getAttribute('data-ts') || 0);
      const scdStatusStr = document.getElementById('hwScdDot').getAttribute('data-status') || 'error';
      
-     // 判斷 ESP32 是否還活著：超過 15 秒沒更新視為斷線
      const isWifiOk = liveTs > 0 && (now - liveTs) < 15000; 
 
      const wifiDot = document.getElementById('hwWifiDot'), wifiText = document.getElementById('hwWifiText');
      const scdDot = document.getElementById('hwScdDot'), scdText = document.getElementById('hwScdText');
 
      if (isWifiOk) {
-         wifiDot.className = 'dot green';
-         wifiText.textContent = 'ESP32: 🟢 已連線';
-         
-         if (scdStatusStr === 'ok') {
-             scdDot.className = 'dot green';
-             scdText.textContent = 'SCD41: 🟢 讀取正常';
-         } else {
-             scdDot.className = 'dot red';
-             scdText.textContent = 'SCD41: 🔴 讀取異常';
-         }
+         wifiDot.className = 'dot green'; wifiText.textContent = 'ESP32: 🟢 已連線';
+         if (scdStatusStr === 'ok') { scdDot.className = 'dot green'; scdText.textContent = 'SCD41: 🟢 讀取正常'; } 
+         else { scdDot.className = 'dot red'; scdText.textContent = 'SCD41: 🔴 讀取異常'; }
      } else {
-         wifiDot.className = 'dot red';
-         wifiText.textContent = 'ESP32: 🔴 網路斷線';
-         scdDot.className = 'dot gray';
-         scdText.textContent = 'SCD41: ⚪ 未知';
+         wifiDot.className = 'dot red'; wifiText.textContent = 'ESP32: 🔴 網路斷線';
+         scdDot.className = 'dot gray'; scdText.textContent = 'SCD41: ⚪ 未知';
      }
   }, 2000);
 
@@ -582,14 +575,23 @@
         isGateOn = data.gate === 'on';
         startTimeMs = data.startTimeMs || null;
         
+        // 【控制預覽模式切換】
+        if (isGateOn) isLocalPreview = false; // 按下開始，脫離預覽，看正式資料庫
+        if (!startTimeMs) isLocalPreview = true; // 完全清空狀態下，強制進入預覽
+
         document.getElementById('btnStart').style.display = isGateOn ? 'none' : 'inline-block';
         document.getElementById('btnPause').style.display = isGateOn ? 'inline-block' : 'none';
         
-        // 狀態顯示更新：如果是完全新的狀態 (無紀錄且沒按開始)，顯示預覽中
-        const isPreviewing = !isGateOn && !startTimeMs;
-        document.getElementById('status').textContent = isGateOn ? '記錄中' : (startTimeMs ? '已暫停' : '即時預覽中');
-        document.getElementById('ledDot').className = isGateOn ? 'dot green' : 'dot gray';
-        document.getElementById('ledText').textContent = isGateOn ? '正式紀錄儲存中' : (startTimeMs ? '暫停儲存' : '純預覽不儲存');
+        // 介面文字更新
+        if (isLocalPreview) {
+            document.getElementById('status').textContent = '即時預覽中';
+            document.getElementById('ledDot').className = 'dot gray';
+            document.getElementById('ledText').textContent = '純預覽不儲存';
+        } else {
+            document.getElementById('status').textContent = isGateOn ? '記錄中' : '已暫停';
+            document.getElementById('ledDot').className = isGateOn ? 'dot green' : 'dot gray';
+            document.getElementById('ledText').textContent = isGateOn ? '正式紀錄儲存中' : '暫停儲存';
+        }
 
         if (data.expKey && data.expKey !== currentExp) {
            document.getElementById('selExp').value = data.expKey;
@@ -598,33 +600,26 @@
 
         // ★ 處理來自 ESP32 的即時預覽數據與心跳
         if (data.live_ts) {
-            // 將時間與感測器狀態記錄到 DOM 上，供上述的計時器檢查
             document.getElementById('ts').setAttribute('data-ts', data.live_ts);
             document.getElementById('hwScdDot').setAttribute('data-status', data.scd41_status || 'error');
 
-            // 只要沒有按下「開始」，我們就用即時數據更新面板的大數字
-            if (!isGateOn) {
-                if (data.live_co2 > 0) {
-                    document.getElementById('co2').textContent = Math.round(data.live_co2);
-                    document.getElementById('temp').textContent = data.live_temp ? data.live_temp.toFixed(1) : '--';
-                    document.getElementById('rh').textContent = data.live_rh ? data.live_rh.toFixed(1) : '--';
-                    updateRiskUI(data.live_co2);
-                } else {
-                    document.getElementById('co2').textContent = '--';
-                    updateRiskUI(null);
-                }
+            // 只要沒有在「正式記錄中」，我們都讓大數字隨著硬體即時跳動
+            if (!isGateOn && data.live_co2 > 0) {
+                document.getElementById('co2').textContent = Math.round(data.live_co2);
+                document.getElementById('temp').textContent = data.live_temp ? data.live_temp.toFixed(1) : '--';
+                document.getElementById('rh').textContent = data.live_rh ? data.live_rh.toFixed(1) : '--';
+                updateRiskUI(data.live_co2);
                 document.getElementById('ts').textContent = new Date(Number(data.live_ts)).toLocaleString();
             }
 
-            // 如果是在「即時預覽」狀態且數據正常，畫出預覽圖表
-            if (isPreviewing && data.live_co2 > 0) {
+            // 【重點功能】如果處於「預覽模式」，我們無條件攔截心跳數據開始畫圖！
+            if (isLocalPreview && data.live_co2 > 0) {
                 if (!previewStartTime) previewStartTime = Number(data.live_ts);
                 const xMin = Math.max(0, (Number(data.live_ts) - previewStartTime) / 1000 / 60);
 
-                // 避免重複加入同一個時間點
                 if (!datasetRealtime.find(p => p.ts === Number(data.live_ts))) {
                     datasetRealtime.push({ x: xMin, y: data.live_co2, ts: Number(data.live_ts) });
-                    if (datasetRealtime.length > 300) datasetRealtime.shift(); // 預覽圖表最多保留約 25 分鐘
+                    if (datasetRealtime.length > 300) datasetRealtime.shift(); // 預覽最多保留畫面
                     redrawChartRealtime();
                 }
             }
@@ -638,8 +633,8 @@
 
   async function switchExperimentRealtime(exp) {
     currentExp = exp;
-    datasetRealtime.length = 0; // 清除畫面
-    previewStartTime = null;    // 重設預覽起點
+    datasetRealtime.length = 0; 
+    previewStartTime = null;    
     redrawChartRealtime();
     
     if (unsubscribeRecords) unsubscribeRecords();
@@ -647,8 +642,8 @@
     unsubscribeRecords = onSnapshot(getRecordsRef(exp), (snapshot) => {
       let latestDoc = null, maxTs = 0;
       
-      // ★ 只有在已經「按下開始」產生了正式紀錄時，才用歷史紀錄檔來重建圖表
-      if (startTimeMs) {
+      // ★ 只有在已經「按下開始」且「不是預覽模式」時，才拿資料庫的歷史紀錄來畫圖
+      if (!isLocalPreview && startTimeMs) {
           datasetRealtime.length = 0;
           snapshot.forEach(docSnap => {
             const d = docSnap.data();
@@ -696,7 +691,8 @@
       updateRiskUI(null);
     }
 
-    // ★ 按下開始時，把預覽圖表歸零，切換為正式紀錄模式
+    // ★ 按下開始時，正式離開預覽模式，並把預覽畫的圖表歸零，準備迎接正式紀錄
+    isLocalPreview = false;
     previewStartTime = null;
     datasetRealtime.length = 0;
     redrawChartRealtime();
@@ -712,6 +708,8 @@
   });
 
   document.getElementById('btnPause').addEventListener('click', async () => {
+    // 按下暫停，凍結圖表停在資料庫最後的紀錄
+    isLocalPreview = false; 
     await updateDoc(getStateRef(), { gate: 'off' });
     showFloat('info', '已暫停紀錄，正在同步備份...');
     performSync();
@@ -731,7 +729,8 @@
     await updateDoc(getStateRef(), { startTimeMs: null });
     document.getElementById('co2').textContent = '--'; document.getElementById('ts').textContent = '--'; updateRiskUI(null);
     
-    // 清空時也把預覽的資料洗掉
+    // 清空後，自動回到預覽模式
+    isLocalPreview = true;
     previewStartTime = null;
     datasetRealtime.length = 0; 
     redrawChartRealtime(); 
@@ -780,7 +779,7 @@
   }, 1000);
 
   // ==========================================
-  // 6. View 2: 趨勢比較邏輯 (省略細節，保持原樣)
+  // 6. View 2: 趨勢比較邏輯
   // ==========================================
   const chartTrend = new Chart(document.getElementById('chartTrend').getContext('2d'), {
     type:'line', data:{ datasets:[] },
