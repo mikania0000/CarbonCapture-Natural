@@ -211,7 +211,7 @@
         <!-- 切換至趨勢圖 -->
         <button id="btnSwitchToTrend" type="button" class="btn btn-pink">📊 趨勢分析</button>
         
-        <div id="remain" class="sub" style="margin-left:auto; font-weight:bold; font-size:22px;">剩餘：-- 秒</div>
+        <div id="remain" class="sub" style="margin-left:auto; font-weight:bold; font-size:22px;">剩餘：-- 時 -- 分 -- 秒</div>
       </div>
     </div>
   </div>
@@ -507,7 +507,7 @@
     }
   };
 
-  Chart.register(RiskLinesPlugin, MidLabelPlugin);
+  Chart.register(RiskLinesPlugin);
 
   // ==========================================
   // 5. View 1: 即時監測與硬體監控邏輯
@@ -773,9 +773,16 @@
   setInterval(() => {
     if (isGateOn && startTimeMs) {
       const remainSec = Math.max(0, Math.floor(DUR_MIN_REALTIME * 60 - ((Date.now() - startTimeMs) / 1000)));
-      document.getElementById('remain').textContent = `剩餘：${remainSec} 秒`;
+      
+      // 計算時、分、秒，並自動補零
+      const h = String(Math.floor(remainSec / 3600)).padStart(2, '0');
+      const m = String(Math.floor((remainSec % 3600) / 60)).padStart(2, '0');
+      const s = String(remainSec % 60).padStart(2, '0');
+      
+      document.getElementById('remain').textContent = `剩餘：${h} 時 ${m} 分 ${s} 秒`;
+      
       if (remainSec === 0) { updateDoc(getStateRef(), { gate: 'off' }); showFloat('info', '已達時長，自動停止並同步', 4); performSync(); }
-    } else document.getElementById('remain').textContent = `剩餘：-- 秒`;
+    } else document.getElementById('remain').textContent = `剩餘：-- 時 -- 分 -- 秒`;
   }, 1000);
 
   // ==========================================
@@ -783,6 +790,7 @@
   // ==========================================
   const chartTrend = new Chart(document.getElementById('chartTrend').getContext('2d'), {
     type:'line', data:{ datasets:[] },
+    plugins: [MidLabelPlugin],
     options:{
       responsive:true, animation:false, parsing:false, maintainAspectRatio: false,
       layout:{ padding:{ right:90 }}, 
