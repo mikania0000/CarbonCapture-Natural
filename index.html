@@ -130,7 +130,7 @@
     <div class="card">
       <div class="title" style="position:relative;">
         <span class="title-3d">環境二氧化碳即時看板 (自然碳匯)</span>
-        <span style="font-size: 16px; color: #9ca3af; font-weight: normal; margin-left: 8px; vertical-align: bottom;">V.20260324.即時預覽版</span>
+        <span style="font-size: 16px; color: #9ca3af; font-weight: normal; margin-left: 8px; vertical-align: bottom;">V.20260324.硬體狀態版</span>
         <button id="btnLogout" class="btn btn-gray" style="position:absolute; right:0; top:0; font-size:14px; padding:8px 12px;">登出</button>
       </div>
       <div class="grid">
@@ -155,10 +155,18 @@
             <div class="led"><span id="ledDot" class="dot gray"></span><span id="ledText" class="sub" style="margin-top:0;">等待連線</span></div>
           </div>
           
-          <div class="db-status-bar">
+          <!-- 軟體/資料庫狀態 -->
+          <div class="db-status-bar" style="margin-bottom:8px;">
             <div class="led" title="核心即時系統"><span id="db1Dot" class="dot gray"></span><span id="db1Text" style="font-size:14px; color:#475569;">主系統: 連線中</span></div>
             <div class="led" title="長期保存系統"><span id="db2Dot" class="dot gray"></span><span id="db2Text" style="font-size:14px; color:#475569;">備份系統: 待命</span></div>
           </div>
+
+          <!-- ★ 新增：硬體/感測器狀態 -->
+          <div class="db-status-bar" style="background:#e0f2fe;">
+            <div class="led" title="ESP32 網路連線狀態"><span id="hwWifiDot" class="dot gray"></span><span id="hwWifiText" style="font-size:14px; color:#0369a1;">ESP32: 偵測中</span></div>
+            <div class="led" title="SCD41 感測器狀態"><span id="hwScdDot" class="dot gray"></span><span id="hwScdText" style="font-size:14px; color:#0369a1;">SCD41: 偵測中</span></div>
+          </div>
+
         </div>
       </div>
     </div>
@@ -332,7 +340,7 @@
 
   function updateRiskUI(ppm){
     const dot=document.getElementById('riskDot'), txt=document.getElementById('riskText');
-    if (ppm==null || isNaN(ppm)){ dot.style.background='#cbd5e1'; txt.textContent='--'; return; }
+    if (ppm==null || isNaN(ppm) || ppm === 0){ dot.style.background='#cbd5e1'; txt.textContent='--'; return; }
     const info = ppm<=450 ? {t:'健康',c:'#22c55e'} : ppm<=700 ? {t:'可接受',c:'#84cc16'}
                : ppm<=1000? {t:'稍悶',c:'#eab308'} : ppm<=2500? {t:'困倦',c:'#f59e0b'}
                : ppm<=5000? {t:'不利健康',c:'#f97316'} : {t:'請勿久待',c:'#ef4444'};
@@ -502,12 +510,12 @@
   Chart.register(RiskLinesPlugin, MidLabelPlugin);
 
   // ==========================================
-  // 5. View 1: 即時監測與預覽邏輯
+  // 5. View 1: 即時監測與硬體監控邏輯
   // ==========================================
   let DUR_MIN_REALTIME = 10;
   let currentExp = 'exp1';
   let isGateOn = false, startTimeMs = null, datasetRealtime = [];
-  let previewStartTime = null; // ★ 用來記錄即時預覽圖表的起始時間
+  let previewStartTime = null; // 用來記錄即時預覽圖表的起始時間
 
   let unsubscribeRecords = null, unsubscribeState = null;
   const getStateRef = () => doc(db, 'artifacts', appId, 'public', 'data', 'config', 'global_state');
@@ -535,6 +543,37 @@
 
   document.getElementById('selDurRealtime').addEventListener('change', (e) => { DUR_MIN_REALTIME = Number(e.target.value); redrawChartRealtime(); });
 
+  // ★ 監控硬體狀態的計時器 (每 2 秒檢查一次是否超時未收到心跳)
+  setInterval(() => {
+     const now = Date.now();
+     const liveTs = Number(document.getElementById('ts').getAttribute('data-ts') || 0);
+     const scdStatusStr = document.getElementById('hwScdDot').getAttribute('data-status') || 'error';
+     
+     // 判斷 ESP32 是否還活著：超過 15 秒沒更新視為斷線
+     const isWifiOk = liveTs > 0 && (now - liveTs) < 15000; 
+
+     const wifiDot = document.getElementById('hwWifiDot'), wifiText = document.getElementById('hwWifiText');
+     const scdDot = document.getElementById('hwScdDot'), scdText = document.getElementById('hwScdText');
+
+     if (isWifiOk) {
+         wifiDot.className = 'dot green';
+         wifiText.textContent = 'ESP32: 🟢 已連線';
+         
+         if (scdStatusStr === 'ok') {
+             scdDot.className = 'dot green';
+             scdText.textContent = 'SCD41: 🟢 讀取正常';
+         } else {
+             scdDot.className = 'dot red';
+             scdText.textContent = 'SCD41: 🔴 讀取異常';
+         }
+     } else {
+         wifiDot.className = 'dot red';
+         wifiText.textContent = 'ESP32: 🔴 網路斷線';
+         scdDot.className = 'dot gray';
+         scdText.textContent = 'SCD41: ⚪ 未知';
+     }
+  }, 2000);
+
   function listenToState() {
     if (unsubscribeState) unsubscribeState();
     unsubscribeState = onSnapshot(getStateRef(), (snapshot) => {
@@ -557,27 +596,35 @@
            switchExperimentRealtime(data.expKey);
         }
 
-        // ★ 核心魔法：處理來自 ESP32 的即時預覽數據 (即使沒按開始也會有)
-        if (data.live_co2) {
+        // ★ 處理來自 ESP32 的即時預覽數據與心跳
+        if (data.live_ts) {
+            // 將時間與感測器狀態記錄到 DOM 上，供上述的計時器檢查
+            document.getElementById('ts').setAttribute('data-ts', data.live_ts);
+            document.getElementById('hwScdDot').setAttribute('data-status', data.scd41_status || 'error');
+
             // 只要沒有按下「開始」，我們就用即時數據更新面板的大數字
             if (!isGateOn) {
-                document.getElementById('co2').textContent = Math.round(data.live_co2);
-                document.getElementById('temp').textContent = data.live_temp ? data.live_temp.toFixed(1) : '--';
-                document.getElementById('rh').textContent = data.live_rh ? data.live_rh.toFixed(1) : '--';
+                if (data.live_co2 > 0) {
+                    document.getElementById('co2').textContent = Math.round(data.live_co2);
+                    document.getElementById('temp').textContent = data.live_temp ? data.live_temp.toFixed(1) : '--';
+                    document.getElementById('rh').textContent = data.live_rh ? data.live_rh.toFixed(1) : '--';
+                    updateRiskUI(data.live_co2);
+                } else {
+                    document.getElementById('co2').textContent = '--';
+                    updateRiskUI(null);
+                }
                 document.getElementById('ts').textContent = new Date(Number(data.live_ts)).toLocaleString();
-                updateRiskUI(data.live_co2);
             }
 
-            // 如果是在「即時預覽」狀態，我們把數據塞進本機暫存陣列，畫出預覽圖表
-            if (isPreviewing) {
+            // 如果是在「即時預覽」狀態且數據正常，畫出預覽圖表
+            if (isPreviewing && data.live_co2 > 0) {
                 if (!previewStartTime) previewStartTime = Number(data.live_ts);
                 const xMin = Math.max(0, (Number(data.live_ts) - previewStartTime) / 1000 / 60);
 
                 // 避免重複加入同一個時間點
                 if (!datasetRealtime.find(p => p.ts === Number(data.live_ts))) {
                     datasetRealtime.push({ x: xMin, y: data.live_co2, ts: Number(data.live_ts) });
-                    // 保留記憶體，預覽圖表最多保留 300 個點 (約 25 分鐘)
-                    if (datasetRealtime.length > 300) datasetRealtime.shift();
+                    if (datasetRealtime.length > 300) datasetRealtime.shift(); // 預覽圖表最多保留約 25 分鐘
                     redrawChartRealtime();
                 }
             }
