@@ -720,21 +720,28 @@
     const ok = await confirmModal('確定清空?', `將刪除「${document.getElementById('selExp').options[document.getElementById('selExp').selectedIndex].text}」的所有系統記錄。`);
     if (!ok) return;
 
+    // 1. 清空 Firebase 歷史資料
     const snap = await getDocs(getRecordsRef(currentExp));
     const batch = writeBatch(db);
     snap.forEach(docSnap => batch.delete(docSnap.ref));
     await batch.commit();
-    try { fetch(`${GAS_URL}?action=clear&currentExp`); } catch(e) {} 
     
+    // 2. ★ 修正：正確通知 GAS 後端清空指定的 Google Sheet 工作表
+    try { fetch(`${GAS_URL}?action=clear&exp=${currentExp}`); } catch(e) {} 
+    
+    // 3. 狀態重置
     await updateDoc(getStateRef(), { startTimeMs: null });
-    document.getElementById('co2').textContent = '--'; document.getElementById('ts').textContent = '--'; updateRiskUI(null);
+    document.getElementById('co2').textContent = '--'; 
+    document.getElementById('ts').textContent = '--'; 
+    updateRiskUI(null);
     
-    // 清空後，自動回到預覽模式
+    // 4. ★ 強制回到預覽模式並重繪圖表
     isLocalPreview = true;
     previewStartTime = null;
     datasetRealtime.length = 0; 
     redrawChartRealtime(); 
-    showFloat('ok', '已清空資料');
+    
+    showFloat('ok', '已清空雲端與試算表，重新預覽中');
   });
 
   document.getElementById('btnRedraw').addEventListener('click', () => {
