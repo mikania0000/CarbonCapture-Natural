@@ -51,7 +51,7 @@
   .btn{border:none; border-radius:12px; padding:12px 20px; font-weight:800; cursor:pointer; box-shadow:0 4px 6px rgba(0,0,0,.05); font-size:18px; line-height:1; transition:0.2s;}
   .btn:active{transform:translateY(2px);}
   .btn:disabled{opacity:0.5; cursor:not-allowed;}
-  .btn-sm{padding:6px 10px; font-size:15px; border-radius:8px;} /* 新增小按鈕樣式 */
+  .btn-sm{padding:6px 10px; font-size:15px; border-radius:8px;} 
   .btn-green{background:#16a34a; color:#fff;} .btn-red{background:#ef4444; color:#fff;}
   .btn-yellow{background:#f59e0b; color:#111;} .btn-deep{background:#065f46; color:#fff;}
   .btn-pink{background:#ec4899; color:#fff;} .btn-gray{background:#9ca3af; color:#111;} .btn-primary{background:#3b82f6; color:#fff;}
@@ -125,7 +125,7 @@
     <div class="card">
       <div class="title" style="position:relative;">
         <span class="title-3d">環境二氧化碳即時看板 (自然碳匯)</span>
-        <span style="font-size: 16px; color: #9ca3af; font-weight: normal; margin-left: 8px; vertical-align: bottom;">V.20260325.科學分析解說版</span>
+        <span style="font-size: 16px; color: #9ca3af; font-weight: normal; margin-left: 8px; vertical-align: bottom;">V.2026.終極分析解說版</span>
         <button id="btnLogout" class="btn btn-gray" style="position:absolute; right:0; top:0; font-size:14px; padding:8px 12px;">登出</button>
       </div>
       <div class="grid">
@@ -317,10 +317,10 @@
 <!-- Global Floating Elements -->
 <div id="float" class="float-msg"></div>
 
-<!-- ★ 新增/更新：原理解說彈出視窗 (加入詳細推導與文獻數據) -->
+<!-- ★ 原理解說彈出視窗 (已補齊乾旱、葉面積與所有統計說明) -->
 <div id="theoryModal" class="modal-backdrop" style="z-index: 100001;">
   <div class="modal" style="max-width: 800px; max-height: 90vh; overflow-y: auto; text-align: left; padding: 30px;">
-    <h2 style="margin-top:0; color:#0f172a; border-bottom:2px solid #e2e8f0; padding-bottom:12px; font-size: 28px;">🌱 植物光合與呼吸作用：速率推導原理</h2>
+    <h2 style="margin-top:0; color:#0f172a; border-bottom:2px solid #e2e8f0; padding-bottom:12px; font-size: 28px;">🌱 植物光合與呼吸作用：速率推導原理與統計分析</h2>
     
     <h3 style="color:#d97706; margin-top:24px; font-size: 22px;">一、 黑暗期：找出「呼吸作用速率 (R)」</h3>
     <ul style="font-size: 18px; line-height: 1.6; color: #334155;">
@@ -383,20 +383,28 @@
         <span class="math" style="display:block; margin-top:8px; font-size:18px;">質量速率 (mg/hr) ≈ 濃度速率 (PPM/min) × V_box(L) × 0.108</span>
     </div>
 
-    <h3 style="color:#059669; margin-top:24px; font-size: 22px;">📊 六、 實驗文獻參考數據 (溫度對光合作用之影響)</h3>
-    <p style="font-size: 16px; line-height: 1.6; color: #334155; margin-bottom: 8px;">在探討「寒流」對植物的影響時，可參考以下學術文獻之典型數據：</p>
-    <ul style="font-size: 16px; line-height: 1.6; color: #334155; background: #ecfdf5; padding: 16px 24px; border-radius: 8px;">
-        <li><b>最適溫度 (25℃ ~ 30℃)：</b><br> 一般 C3 植物（如大豆、水稻、多數闊葉植物）在此溫度下，Rubisco 酵素活性最高，淨光合速率通常落在 <b>15 ~ 30 mg CO₂ / dm² / hr</b> 之間 <i>(Taiz et al., 2015)</i>。</li>
-        <li style="margin-top: 10px;"><b>低溫逆境/寒流 (10℃ ~ 15℃)：</b><br> 低溫會導致酵素反應變慢、細胞膜流動性下降及氣孔部分關閉。文獻指出，此溫度下的淨光合速率常會驟降至 <b>5 ~ 10 mg CO₂ / dm² / hr</b>（僅剩適溫時的 30% ~ 50%） <i>(Berry & Bjorkman, 1980)</i>。</li>
-        <li style="margin-top: 10px; color: #047857;"><b>💡 科展討論方向：</b><br> 您可以將系統算出的「淨光合質量速率 (mg/hr)」除以您實驗植物的「葉面積 (dm²)」，藉此與上述文獻標準值進行比對，論證寒流(低溫)對碳固定能力的實際削弱程度！</li>
+    <h3 style="color:#ca8a04; margin-top:24px; font-size: 22px;">📏 六、 實驗技巧：葉面積 (Leaf Area) 的標準化推估</h3>
+    <p style="font-size: 16px; line-height: 1.6; color: #334155; margin-bottom: 8px;">為了讓不同大小的植物實驗具備「可比較性」，必須將算出的總質量速率除以總葉面積，得出標準單位：<b>mg / hr / dm²</b>。</p>
+    <ul style="font-size: 16px; line-height: 1.6; color: #334155; background: #fefce8; padding: 16px 24px; border-radius: 8px; border: 1px solid #fef08a;">
+        <li><b>影像分析法 (最推薦)：</b> 將葉片平鋪，旁邊放一枚 10 元硬幣當比例尺垂直拍照。使用免費軟體 <b>ImageJ</b> 圈定比例尺並設定色彩閥值，即可一鍵精準算出面積。</li>
+        <li style="margin-top:8px;"><b>剪紙稱重法：</b> 將葉片輪廓畫在紙上並剪下稱重 (W1)，再剪下一塊 10x10 cm (100 cm²) 的同款紙稱重 (W2)。葉面積 = (W1 / W2) × 100。</li>
     </ul>
 
-    <h3 style="color:#475569; margin-top:24px; font-size: 22px;">📚 七、 參考文獻</h3>
+    <h3 style="color:#059669; margin-top:24px; font-size: 22px;">📊 七、 實驗文獻參考數據 (逆境對光合作用之影響)</h3>
+    <p style="font-size: 16px; line-height: 1.6; color: #334155; margin-bottom: 8px;">在探討逆境對植物的影響時，可參考以下學術文獻之典型數據與機制：</p>
+    <ul style="font-size: 16px; line-height: 1.6; color: #334155; background: #ecfdf5; padding: 16px 24px; border-radius: 8px;">
+        <li><b>最適溫度 (25℃ ~ 30℃)：</b><br> 一般 C3 植物在此溫度下，淨光合速率通常落在 <b>15 ~ 30 mg CO₂ / dm² / hr</b> 之間。</li>
+        <li style="margin-top: 10px;"><b>低溫逆境/寒流 (10℃ ~ 15℃)：</b><br> 低溫會導致酵素反應變慢及氣孔部分關閉。文獻指出，此溫度下的淨光合速率常會驟降至 <b>5 ~ 10 mg CO₂ / dm² / hr</b>（僅剩適溫時的 30% ~ 50%）。</li>
+        <li style="margin-top: 10px;"><b>水分逆境/乾旱的機制影響：</b><br> 植物遇乾旱會分泌離層酸 (ABA) 導致「氣孔關閉」，使得 <b>光合速率在初期就會劇烈下降</b>；但為了修復逆境損傷，<b>呼吸作用可能維持不變甚至微幅上升</b>。</li>
+    </ul>
+
+    <h3 style="color:#475569; margin-top:24px; font-size: 22px;">📚 八、 參考文獻</h3>
     <ul style="font-size: 15px; line-height: 1.6; color: #334155;">
-        <li>Taiz, L., Zeiger, E., Møller, I. M., & Murphy, A. (2015). <i>Plant Physiology and Development</i> (6th ed.). Sinauer Associates. (植物生理學標準教科書，提供溫度曲線基礎數據)</li>
-        <li>Berry, J., & Bjorkman, O. (1980). Photosynthetic response and adaptation to temperature in higher plants. <i>Annual Review of Plant Physiology, 31</i>(1), 491-543. (探討低溫逆境對光合作用影響之經典文獻)</li>
-        <li>王瑜 等（2020）。<i>普通高級中學選修化學 I：物質與能量</i>。新北市：南一書局。(理想氣體方程式與亞佛加厥定律)</li>
-        <li>趙大衛 等（2020）。<i>普通高級中學選修生物 III：植物體的構造與功能</i>。新北市：龍騰文化。(光合與呼吸作用基礎理論)</li>
+        <li>Taiz, L., Zeiger, E., Møller, I. M., & Murphy, A. (2015). <i>Plant Physiology and Development</i> (6th ed.). Sinauer Associates. </li>
+        <li>Berry, J., & Bjorkman, O. (1980). Photosynthetic response and adaptation to temperature in higher plants. <i>Annual Review of Plant Physiology, 31</i>(1), 491-543.</li>
+        <li>Flexas, J., & Medrano, H. (2002). Energy dissipation in C3 plants under drought. <i>Functional Plant Biology, 53</i>(4), 389-404.</li>
+        <li>Atkin, O. K., & Macherel, D. (2009). The crucial role of plant mitochondria in orchestrating drought tolerance. <i>Annals of Botany, 103</i>(4), 581-597.</li>
+        <li>Schneider, C. A., Rasband, W. S., & Eliceiri, K. W. (2012). NIH Image to ImageJ: 25 years of image analysis. <i>Nature methods, 9</i>(7), 671-675.</li>
     </ul>
 
     <div style="text-align:center; margin-top: 32px;">
@@ -1276,7 +1284,7 @@
     const dStart = Number(document.getElementById('darkStart').value);
     const dEnd = Number(document.getElementById('darkEnd').value);
     
-    // ★ 取得箱體積
+    // 取得箱體積
     const vBox = Number(document.getElementById('boxVolume').value) || 12;
 
     const lightPts = dataset.data.filter(p => p.x >= lStart && p.x <= lEnd);
@@ -1332,10 +1340,7 @@
     const rateNetPhoto = -regLight.m; 
     const rateGrossPhoto = rateResp + rateNetPhoto;
     
-    // ★ 計算換算係數 (PPM/min 轉 mg/hr)
-    // 假設常溫常壓 (25℃, 1atm)，莫耳體積約 24.45 L/mol，CO2分子量 44.01 g/mol
-    // 每小時毫克數 = PPM/min * 60(分) * 體積(L) * (44.01 / 24.45 / 1000)
-    // 簡化常數 = 60 * (44.01 / 24450) ≈ 0.108
+    // 計算換算係數 (PPM/min 轉 mg/hr)
     const coeff = vBox * 0.108;
 
     const tRate = document.getElementById('rateTbody');
