@@ -745,13 +745,27 @@
   });
 
   document.getElementById('btnRedraw').addEventListener('click', () => {
+    if (isGateOn) {
+      showFloat('info', '記錄中，無法使用預覽重繪');
+      return;
+    }
+    
+    // ★ 核心修正：強制脫離「已暫停(凍結)」狀態，切換回純預覽模式
+    isLocalPreview = true;
+    
     // 1. 洗掉目前的畫布暫存資料
     datasetRealtime.length = 0; 
     // 2. 把預覽時間的起點歸零，讓下一筆資料從 0 分鐘開始畫
     previewStartTime = null;    
     // 3. 更新圖表畫面 (會瞬間變空白，等待幾秒後新資料進來)
     redrawChartRealtime();      
-    showFloat('ok', '畫面已清除，重新開始繪製預覽圖');
+    
+    // 立即更新狀態介面
+    document.getElementById('status').textContent = '即時預覽中';
+    document.getElementById('ledDot').className = 'dot gray';
+    document.getElementById('ledText').textContent = '純預覽不儲存';
+
+    showFloat('ok', '已回到預覽模式，重新開始繪製');
   });
 
   // Background Sync
