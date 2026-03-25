@@ -51,17 +51,23 @@
   .btn{border:none; border-radius:12px; padding:12px 20px; font-weight:800; cursor:pointer; box-shadow:0 4px 6px rgba(0,0,0,.05); font-size:18px; line-height:1; transition:0.2s;}
   .btn:active{transform:translateY(2px);}
   .btn:disabled{opacity:0.5; cursor:not-allowed;}
+  .btn-sm{padding:6px 10px; font-size:15px; border-radius:8px;} /* 新增小按鈕樣式 */
   .btn-green{background:#16a34a; color:#fff;} .btn-red{background:#ef4444; color:#fff;}
   .btn-yellow{background:#f59e0b; color:#111;} .btn-deep{background:#065f46; color:#fff;}
   .btn-pink{background:#ec4899; color:#fff;} .btn-gray{background:#9ca3af; color:#111;} .btn-primary{background:#3b82f6; color:#fff;}
+  .btn-purple{background:#8b5cf6; color:#fff;}
   .controls{display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-top:16px;}
-  select, input[type="text"]{font-size:18px; padding:8px 12px; border-radius:8px; border:1px solid #cbd5e1;}
+  select, input[type="text"], input[type="number"]{font-size:18px; padding:8px 12px; border-radius:8px; border:1px solid #cbd5e1;}
   select:focus, input:focus { outline:none; border-color:#2563eb; box-shadow:0 0 0 3px rgba(37,99,235,.15); }
   label.chk{ display:inline-flex; align-items:center; gap:6px; font-size:18px; cursor:pointer; min-width:140px; }
   
+  /* 動畫特效：選取模式閃爍提示 */
+  .picking { animation: pulse 1.5s infinite; background: #ec4899; color: white; border-color: #ec4899;}
+  @keyframes pulse { 0% {box-shadow: 0 0 0 0 rgba(236,72,153, 0.7);} 70% {box-shadow: 0 0 0 6px rgba(236,72,153, 0);} 100% {box-shadow: 0 0 0 0 rgba(236,72,153, 0);} }
+
   /* Chart Containers */
   .chart-realtime { position: relative; height: 360px; width: 100%; margin-top:10px; }
-  .chart-trend { position: relative; height: 560px; width: 100%; margin-top: 20px; }
+  .chart-trend { position: relative; height: 500px; width: 100%; margin-top: 20px; }
   
   /* Views */
   .view-section { display: none; animation: fadeIn 0.3s ease; }
@@ -77,6 +83,14 @@
   .modal h3{ margin:0 0 12px; font-size:24px; }
   .modal p{ margin:0 0 20px; font-size:18px; color:#4b5563; line-height:1.5;}
 
+  /* Analysis Table Styles */
+  .analysis-table { width: 100%; border-collapse: collapse; margin-top: 16px; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,.05); }
+  .analysis-table th, .analysis-table td { padding: 12px 16px; text-align: left; border-bottom: 1px solid #e2e8f0; font-size: 16px; }
+  .analysis-table th { background: #f8fafc; font-weight: bold; color: #334155; }
+  .analysis-table tr:last-child td { border-bottom: none; }
+  .analysis-table .highlight { font-weight: 800; color: #0369a1; font-size: 18px; }
+  .analysis-table .math { font-family: "Courier New", Courier, monospace; background: #f1f5f9; padding: 4px 8px; border-radius: 4px; color: #db2777; font-weight: bold; }
+
   /* Login Overlay */
   #loginOverlay { position: fixed; inset: 0; background: var(--page); z-index: 99999; display: flex; flex-direction: column; align-items: center; justify-content: center; }
   .login-card { background: var(--card); padding: 40px; border-radius: var(--radius); box-shadow: var(--shadow); text-align: center; max-width: 450px; width: 90%; }
@@ -91,31 +105,12 @@
     <div class="title" style="font-size: 32px; margin-bottom: 8px;">環境二氧化碳即時看板</div>
     <p style="color: #475569; margin-bottom: 24px; font-weight: bold;">請使用 Google 帳號登入系統</p>
     
-    <!-- Google 登入按鈕 -->
     <div style="display:flex; justify-content:center;">
-      <div id="g_id_onload"
-           data-client_id="553016940521-araovlp30ctbqn6um5rr49q3es5jm4jg.apps.googleusercontent.com"
-           data-callback="handleGoogleLogin"
-           data-auto_prompt="false">
-      </div>
-      <div class="g_id_signin" 
-           data-type="standard" 
-           data-size="large" 
-           data-theme="outline" 
-           data-text="sign_in_with" 
-           data-shape="rectangular" 
-           data-logo_alignment="left">
-      </div>
+      <div id="g_id_onload" data-client_id="553016940521-araovlp30ctbqn6um5rr49q3es5jm4jg.apps.googleusercontent.com" data-callback="handleGoogleLogin" data-auto_prompt="false"></div>
+      <div class="g_id_signin" data-type="standard" data-size="large" data-theme="outline" data-text="sign_in_with" data-shape="rectangular" data-logo_alignment="left"></div>
     </div>
-
-    <div id="loginLoading" style="display:none; margin-top:16px; color:var(--info); font-weight:bold; font-size:18px;">
-      正在與白名單驗證中，請稍候...
-    </div>
-    
-    <!-- 新增：直接顯示在面板上的專屬錯誤訊息區塊 -->
+    <div id="loginLoading" style="display:none; margin-top:16px; color:var(--info); font-weight:bold; font-size:18px;">正在與白名單驗證中，請稍候...</div>
     <div id="loginErrorMsg" style="display:none; margin-top:16px; color:var(--err); font-weight:bold; font-size:16px; background:#fee2e2; padding:12px; border-radius:8px;"></div>
-
-    <!-- LINE 瀏覽器警告 -->
     <div id="lineWarning" class="line-warning">
       ⚠️ 偵測到您使用 LINE 內建瀏覽器。<br><br>Google 登入不支援 LINE，系統正嘗試為您開啟外部瀏覽器...<br><br>若無反應，請點擊右上角的「 ⋮ 」圖示，選擇<b>「以其他瀏覽器開啟」</b>，或點擊下方按鈕複製網址至 Chrome / Safari 開啟。<br>
       <button id="btnCopyUrl" class="btn btn-gray" style="margin-top: 12px; font-size: 16px; padding: 8px; width: 100%;">🔗 複製網址</button>
@@ -130,7 +125,7 @@
     <div class="card">
       <div class="title" style="position:relative;">
         <span class="title-3d">環境二氧化碳即時看板 (自然碳匯)</span>
-        <span style="font-size: 16px; color: #9ca3af; font-weight: normal; margin-left: 8px; vertical-align: bottom;">V.20260325.全修復版</span>
+        <span style="font-size: 16px; color: #9ca3af; font-weight: normal; margin-left: 8px; vertical-align: bottom;">V.20260325.科學分析解說版</span>
         <button id="btnLogout" class="btn btn-gray" style="position:absolute; right:0; top:0; font-size:14px; padding:8px 12px;">登出</button>
       </div>
       <div class="grid">
@@ -155,18 +150,15 @@
             <div class="led"><span id="ledDot" class="dot gray"></span><span id="ledText" class="sub" style="margin-top:0;">等待連線</span></div>
           </div>
           
-          <!-- 軟體/資料庫狀態 -->
           <div class="db-status-bar" style="margin-bottom:8px;">
             <div class="led" title="核心即時系統"><span id="db1Dot" class="dot gray"></span><span id="db1Text" style="font-size:14px; color:#475569;">主系統: 連線中</span></div>
             <div class="led" title="長期保存系統"><span id="db2Dot" class="dot gray"></span><span id="db2Text" style="font-size:14px; color:#475569;">備份系統: 待命</span></div>
           </div>
 
-          <!-- 硬體/感測器狀態 -->
           <div class="db-status-bar" style="background:#e0f2fe;">
             <div class="led" title="ESP32 網路連線狀態"><span id="hwWifiDot" class="dot gray"></span><span id="hwWifiText" style="font-size:14px; color:#0369a1;">ESP32: 偵測中</span></div>
             <div class="led" title="SCD41 感測器狀態"><span id="hwScdDot" class="dot gray"></span><span id="hwScdText" style="font-size:14px; color:#0369a1;">SCD41: 偵測中</span></div>
           </div>
-
         </div>
       </div>
     </div>
@@ -175,18 +167,13 @@
       <div id="chartTitleRealtime" class="sub" style="margin-bottom:8px">近 10 分鐘 CO₂ 濃度趨勢</div>
       <div class="chart-realtime"><canvas id="chartRealtime"></canvas></div>
 
-      <!-- 第一排：設定選項 -->
       <div class="controls" style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px dashed #e5e7eb;">
         <label class="sub">時間視窗：</label>
         <select id="selDurRealtime">
-          <option value="10" selected>10 分鐘</option>
-          <option value="30">30 分鐘</option>
-          <option value="60">60 分鐘</option>
-          <option value="120">120 分鐘</option>
-          <option value="150">150 分鐘</option>
-          <option value="180">180 分鐘</option>
-          <option value="210">210 分鐘</option>
-          <option value="240">240 分鐘</option>
+          <option value="10" selected>10 分鐘</option><option value="30">30 分鐘</option>
+          <option value="60">60 分鐘</option><option value="120">120 分鐘</option>
+          <option value="150">150 分鐘</option><option value="180">180 分鐘</option>
+          <option value="210">210 分鐘</option><option value="240">240 分鐘</option>
         </select>
 
         <label class="sub">實驗：</label>
@@ -201,14 +188,12 @@
         <input id="expName" type="text" placeholder="實驗名稱" style="min-width:180px;"/>
       </div>
 
-      <!-- 第二排：操作按鈕 -->
       <div class="controls" style="margin-top: 0;">
         <button id="btnStart" type="button" class="btn btn-green">開始</button>
         <button id="btnPause" type="button" class="btn btn-red" style="display:none;">暫停</button>
         <button id="btnClear" type="button" class="btn btn-deep">清空數據</button>
         <button id="btnRedraw" type="button" class="btn btn-yellow">即時重繪</button>
         
-        <!-- 切換至趨勢圖 -->
         <button id="btnSwitchToTrend" type="button" class="btn btn-pink">📊 趨勢分析</button>
         
         <div id="remain" class="sub" style="margin-left:auto; font-weight:bold; font-size:22px;">剩餘：-- 時 -- 分 -- 秒</div>
@@ -233,14 +218,10 @@
 
         <label class="sub" style="margin-left:20px;">時間範圍：</label>
         <select id="selDurTrend">
-          <option value="10">10 分鐘</option>
-          <option value="30">30 分鐘</option>
-          <option value="60">60 分鐘</option>
-          <option value="120" selected>120 分鐘</option>
-          <option value="150">150 分鐘</option>
-          <option value="180">180 分鐘</option>
-          <option value="210">210 分鐘</option>
-          <option value="240">240 分鐘</option>
+          <option value="10">10 分鐘</option><option value="30">30 分鐘</option>
+          <option value="60">60 分鐘</option><option value="120">120 分鐘</option>
+          <option value="150">150 分鐘</option><option value="180">180 分鐘</option>
+          <option value="210">210 分鐘</option><option value="240" selected>240 分鐘</option>
         </select>
         
         <span id="loadingTrend" style="display:none; color:#f59e0b; font-weight:bold; margin-left:10px;">資料讀取中...</span>
@@ -263,7 +244,71 @@
         </div>
       </div>
 
-      <div class="chart-trend"><canvas id="chartTrend"></canvas></div>
+      <div class="chart-trend" style="position:relative;">
+        <canvas id="chartTrend"></canvas>
+      </div>
+    </div>
+
+    <!-- ★ 植物光合/呼吸作用進階分析模組 -->
+    <div class="card" style="margin-top: 16px; background: #fffbeb; border: 1px solid #fde68a;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
+        <div class="title" style="font-size: 26px; margin-bottom: 0;">🔬 植物光合/呼吸作用進階分析</div>
+        <button id="btnShowTheory" class="btn btn-primary" style="padding: 8px 16px; display: flex; align-items: center; gap: 6px;">📖 原理解說</button>
+      </div>
+      <p style="color: #64748b; font-size: 16px; margin-top: 0;">請選擇分析的頻道，並直接點擊「🎯圖上選取」在上方圖表框選光照/黑暗區間，系統將自動推算反應速率。</p>
+      
+      <div class="row" style="margin-top: 16px;">
+        <label class="sub">分析目標實驗：</label>
+        <select id="selAnalysisExp" style="font-weight: bold; color: #0369a1; background:#f0f9ff;"></select>
+      </div>
+      
+      <!-- 互動選取與體積輸入區塊 -->
+      <div class="row" style="margin-top: 12px; background: #fef3c7; padding: 12px; border-radius: 8px; align-items: center;">
+        <label class="sub" style="color: #d97706; margin-right: 4px;">☀️ 光照期：</label>
+        <input type="number" id="lightStart" value="10" style="width:70px"> <span class="sub">~</span> <input type="number" id="lightEnd" value="120" style="width:70px">
+        <button id="btnPickLight" class="btn btn-sm btn-yellow" style="margin-right: 16px;">🎯 圖上選取</button>
+        
+        <label class="sub" style="color: #374151; margin-right: 4px;">🌑 黑暗期：</label>
+        <input type="number" id="darkStart" value="130" style="width:70px"> <span class="sub">~</span> <input type="number" id="darkEnd" value="240" style="width:70px">
+        <button id="btnPickDark" class="btn btn-sm btn-gray">🎯 圖上選取</button>
+        
+        <label class="sub" style="margin-left:16px; color: #047857; margin-right: 4px;">📦 箱體積(L)：</label>
+        <input type="number" id="boxVolume" value="12" style="width:70px" title="用於將 PPM 換算為實際質量 (毫克)">
+
+        <button id="btnRunAnalysis" class="btn btn-purple" style="margin-left:auto; padding: 10px 16px;">⚡ 執行迴歸分析</button>
+      </div>
+      
+      <!-- 統計分析結果表格 -->
+      <div id="analysisResults" style="display:none; margin-top: 24px; animation: fadeIn 0.5s ease;">
+        <h3 style="margin-bottom: 8px; color: #1e293b;">📊 1. 區段線性迴歸分析結果</h3>
+        <table class="analysis-table">
+          <thead>
+            <tr>
+              <th>實驗期間</th>
+              <th>設定區間</th>
+              <th>直線方程式 (y = mx + b)</th>
+              <th>決定係數 (R²)</th>
+              <th>殘差標準差 (SD)</th>
+              <th>P 檢定值</th>
+              <th>CO₂ 變化淨速率 (m)</th>
+            </tr>
+          </thead>
+          <tbody id="regressionTbody"></tbody>
+        </table>
+
+        <h3 style="margin-top: 24px; margin-bottom: 8px; color: #1e293b;">🌱 2. 光合與呼吸作用速率推算表</h3>
+        <table class="analysis-table">
+          <thead>
+            <tr>
+              <th style="width: 20%;">作用類型</th>
+              <th style="width: 20%;">濃度速率 (PPM / min)</th>
+              <th style="width: 20%;">質量速率 (mg / hr)</th>
+              <th style="width: 40%;">推導邏輯</th>
+            </tr>
+          </thead>
+          <tbody id="rateTbody"></tbody>
+        </table>
+      </div>
     </div>
   </div>
 
@@ -271,10 +316,64 @@
 
 <!-- Global Floating Elements -->
 <div id="float" class="float-msg"></div>
+
+<!-- ★ 新增：原理解說彈出視窗 -->
+<div id="theoryModal" class="modal-backdrop" style="z-index: 100001;">
+  <div class="modal" style="max-width: 800px; max-height: 90vh; overflow-y: auto; text-align: left; padding: 30px;">
+    <h2 style="margin-top:0; color:#0f172a; border-bottom:2px solid #e2e8f0; padding-bottom:12px; font-size: 28px;">🌱 植物光合與呼吸作用：速率推導原理</h2>
+    
+    <h3 style="color:#d97706; margin-top:24px; font-size: 22px;">一、 黑暗期：找出「呼吸作用速率 (R)」</h3>
+    <ul style="font-size: 18px; line-height: 1.6; color: #334155;">
+        <li><b>環境條件：</b>沒有光照。</li>
+        <li><b>生理反應：</b>葉綠體停止運作，粒線體持續進行<b>呼吸作用</b>。</li>
+        <li><b>公式推導：</b>箱內 CO₂ 濃度的上升速度，完全等於呼吸作用產生的速度。<br>
+        <span class="math" style="display:inline-block; margin-top:6px; font-size:18px;">R = m_dark</span> (黑暗期的斜率)</li>
+    </ul>
+
+    <h3 style="color:#2563eb; margin-top:24px; font-size: 22px;">二、 光照期：找出「淨光合作用速率 (P_net)」</h3>
+    <ul style="font-size: 18px; line-height: 1.6; color: #334155;">
+        <li><b>環境條件：</b>給予光照。</li>
+        <li><b>生理反應：</b>葉綠體進行光合作用 (消耗 CO₂)，粒線體進行呼吸作用 (產生 CO₂)。</li>
+        <li><b>公式推導：</b>感測器測得的濃度下降，是兩者抵銷後的「淨變化量」。為了取正值，將斜率加上負號：<br>
+        <span class="math" style="display:inline-block; margin-top:6px; font-size:18px;">P_net = -(m_light)</span></li>
+    </ul>
+
+    <h3 style="color:#16a34a; margin-top:24px; font-size: 22px;">三、 終極目標：推算「總光合作用速率 (P_gross)」</h3>
+    <ul style="font-size: 18px; line-height: 1.6; color: #334155;">
+        <li><b>核心概念：</b>光照期看到的 CO₂ 下降量，是已經被呼吸作用「偷偷抵銷掉一部分」的結果。想知道真正吸收了多少，必須把呼吸作用吐出來的加回去。</li>
+        <li><b>公式推導：</b><br>
+        <div style="background:#f0fdf4; padding:12px; border-radius:8px; margin-top:8px; border:1px solid #bbf7d0;">
+          總光合作用 = 淨光合作用 + 呼吸作用<br>
+          <span class="math" style="display:inline-block; margin-top:6px; font-size:18px;">P_gross = P_net + R = -(m_light) + m_dark</span>
+        </div>
+        </li>
+    </ul>
+
+    <h3 style="color:#8b5cf6; margin-top:24px; font-size: 22px;">🌟 四、 進階換算：將 PPM 轉換為實際質量 (mg/hr)</h3>
+    <p style="font-size: 18px; line-height: 1.6; color: #334155;">PPM 只是體積比例。為了計算吸收了幾毫克的 CO₂，必須帶入「實驗箱體積 (V_box)」並運用理想氣體定律 (常溫常壓 25℃, 1atm)。</p>
+    <div style="background:#f5f3ff; padding:16px; border-radius:8px; margin-top:12px; border: 1px solid #ddd6fe;">
+        <b style="color:#6d28d9;">最終綜合換算公式：</b><br>
+        <span class="math" style="display:block; margin-top:8px; font-size:18px;">質量速率 (mg/hr) ≈ 濃度速率 (PPM/min) × V_box(L) × 0.108</span>
+    </div>
+
+    <h3 style="color:#475569; margin-top:24px; font-size: 22px;">📚 五、 參考文獻</h3>
+    <ul style="font-size: 16px; line-height: 1.6; color: #334155;">
+        <li>Reece, J. B., et al. (2020). <i>Campbell Biology</i> (12th ed.). Pearson. (鍾楊聰 等譯，生物學，台灣培生教育)</li>
+        <li>趙大衛 等（2020）。<i>普通高級中學選修生物 III：植物體的構造與功能</i>。新北市：龍騰文化。</li>
+        <li>柯勇（1998）。<i>植物生理學</i>。台北市：藝軒圖書出版社。</li>
+        <li>王瑜 等（2020）。<i>普通高級中學選修化學 I：物質與能量</i>。新北市：南一書局。</li>
+        <li>環境部（2012）。<i>空氣污染物濃度單位換算基準</i>。中華民國行政院環境部。</li>
+    </ul>
+
+    <div style="text-align:center; margin-top: 32px;">
+      <button id="btnCloseTheory" class="btn btn-gray" style="font-size: 20px; padding: 10px 30px;">關閉解說</button>
+    </div>
+  </div>
+</div>
+
 <div id="modalBackdrop" class="modal-backdrop">
   <div class="modal">
     <h3 id="modalTitle">確認</h3>
-    <!-- 支援 HTML 排版，防呆訊息才能顯示粗體、顏色與換行 -->
     <p id="modalMsg">—</p>
     <div style="display:flex; gap:12px; justify-content:center;">
       <button id="btnCancelModal" class="btn btn-gray">取消</button>
@@ -289,7 +388,6 @@
   // ==========================================
   import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
   import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-  // ★ 引入 getDoc 函式
   import { getFirestore, collection, doc, setDoc, onSnapshot, updateDoc, writeBatch, getDocs, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
   const GAS_URL = "https://script.google.com/macros/s/AKfycbwg6cdyhiKeXSQp3lCf3mwWXtUYu05jJ9EWfxm0vctJeMd4FYh-s5QmsJDhFlp9ctQ7/exec"; 
@@ -432,8 +530,14 @@
   };
 
   // ==========================================
-  // 4. 圖表共用 Plugins 註冊
+  // 4. 圖表共用 Plugins 註冊 (含圖上選取特效)
   // ==========================================
+  
+  let pickMode = null; 
+  let pickStep = 0;    
+  let pickTempX = null; 
+  let hoverX = null;    
+
   const RiskLinesPlugin = {
     id:'riskLines',
     afterDatasetsDraw(chart, args, opts){
@@ -469,6 +573,8 @@
       ctx.save();
       ctx.textBaseline = 'middle';
       data.datasets.forEach((ds, i) => {
+        if(ds.isRegressionLine) return; // 忽略迴歸分析輔助線的標籤
+
         const nodes = chart.getDatasetMeta(i)?.data || [];
         if (!nodes.length || ds.hidden) return;
 
@@ -508,7 +614,67 @@
     }
   };
 
-  Chart.register(RiskLinesPlugin); // 只全域註冊危險線，不註冊標籤外掛
+  const PickAreaPlugin = {
+    id: 'pickAreaPlugin',
+    afterDraw(chart) {
+      if (!pickMode) return;
+      const {ctx, chartArea: {top, bottom, left, right}, scales: {x}} = chart;
+      ctx.save();
+      
+      const isLight = pickMode === 'light';
+      const colorHex = isLight ? '#f59e0b' : '#374151'; 
+      const colorRgba = isLight ? 'rgba(245, 158, 11, 0.15)' : 'rgba(55, 65, 81, 0.15)';
+      const colorPink = 'rgba(236,72,153, 0.9)';
+
+      if (pickStep === 1 && pickTempX !== null) {
+          let px = x.getPixelForValue(pickTempX);
+          px = Math.max(left, Math.min(right, px)); 
+
+          ctx.beginPath();
+          ctx.moveTo(px, top);
+          ctx.lineTo(px, bottom);
+          ctx.lineWidth = 2;
+          ctx.strokeStyle = colorHex;
+          ctx.setLineDash([5, 5]);
+          ctx.stroke();
+          
+          if (hoverX !== null) {
+              let hx = x.getPixelForValue(hoverX);
+              hx = Math.max(left, Math.min(right, hx));
+              ctx.fillStyle = colorRgba;
+              ctx.fillRect(Math.min(px, hx), top, Math.abs(hx - px), bottom - top);
+          }
+      }
+
+      if (hoverX !== null) {
+          let hx = x.getPixelForValue(hoverX);
+          hx = Math.max(left, Math.min(right, hx));
+
+          ctx.beginPath();
+          ctx.moveTo(hx, top);
+          ctx.lineTo(hx, bottom);
+          ctx.lineWidth = 1;
+          ctx.strokeStyle = colorPink;
+          ctx.setLineDash([]);
+          ctx.stroke();
+
+          ctx.fillStyle = colorPink;
+          ctx.beginPath();
+          ctx.roundRect(hx - 22, top - 24, 44, 20, 4);
+          ctx.fill();
+
+          ctx.fillStyle = '#fff';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.font = 'bold 12px system-ui';
+          ctx.fillText(`${hoverX}分`, hx, top - 14);
+      }
+      
+      ctx.restore();
+    }
+  };
+
+  Chart.register(RiskLinesPlugin); 
 
   // ==========================================
   // 5. View 1: 即時監測與硬體監控邏輯
@@ -517,8 +683,6 @@
   let currentExp = 'exp1';
   let isGateOn = false, startTimeMs = null, datasetRealtime = [];
   let previewStartTime = null; 
-
-  // ★ 核心魔法變數：只要網頁一開，預設進入「純預覽模式」(畫圖但不儲存)
   let isLocalPreview = true;   
 
   let unsubscribeRecords = null, unsubscribeState = null;
@@ -547,7 +711,6 @@
 
   document.getElementById('selDurRealtime').addEventListener('change', (e) => { DUR_MIN_REALTIME = Number(e.target.value); redrawChartRealtime(); });
 
-  // ★ 監控硬體狀態的計時器
   setInterval(() => {
      const now = Date.now();
      const liveTs = Number(document.getElementById('ts').getAttribute('data-ts') || 0);
@@ -576,14 +739,12 @@
         isGateOn = data.gate === 'on';
         startTimeMs = data.startTimeMs || null;
         
-        // 【控制預覽模式切換】
-        if (isGateOn) isLocalPreview = false; // 按下開始，脫離預覽，看正式資料庫
-        if (!startTimeMs) isLocalPreview = true; // 完全清空狀態下，強制進入預覽
+        if (isGateOn) isLocalPreview = false; 
+        if (!startTimeMs) isLocalPreview = true; 
 
         document.getElementById('btnStart').style.display = isGateOn ? 'none' : 'inline-block';
         document.getElementById('btnPause').style.display = isGateOn ? 'inline-block' : 'none';
         
-        // 介面文字更新
         if (isLocalPreview) {
             document.getElementById('status').textContent = '即時預覽中';
             document.getElementById('ledDot').className = 'dot gray';
@@ -599,12 +760,10 @@
            switchExperimentRealtime(data.expKey);
         }
 
-        // ★ 處理來自 ESP32 的即時預覽數據與心跳
         if (data.live_ts) {
             document.getElementById('ts').setAttribute('data-ts', data.live_ts);
             document.getElementById('hwScdDot').setAttribute('data-status', data.scd41_status || 'error');
 
-            // 只要沒有在「正式記錄中」，我們都讓大數字隨著硬體即時跳動
             if (!isGateOn && data.live_co2 > 0) {
                 document.getElementById('co2').textContent = Math.round(data.live_co2);
                 document.getElementById('temp').textContent = data.live_temp ? data.live_temp.toFixed(1) : '--';
@@ -613,19 +772,17 @@
                 document.getElementById('ts').textContent = new Date(Number(data.live_ts)).toLocaleString();
             }
 
-            // 【重點功能】如果處於「預覽模式」，我們無條件攔截心跳數據開始畫圖！
             if (isLocalPreview && data.live_co2 > 0) {
                 if (!previewStartTime) previewStartTime = Number(data.live_ts);
                 const xMin = Math.max(0, (Number(data.live_ts) - previewStartTime) / 1000 / 60);
 
                 if (!datasetRealtime.find(p => p.ts === Number(data.live_ts))) {
                     datasetRealtime.push({ x: xMin, y: data.live_co2, ts: Number(data.live_ts) });
-                    if (datasetRealtime.length > 300) datasetRealtime.shift(); // 預覽最多保留畫面
+                    if (datasetRealtime.length > 300) datasetRealtime.shift(); 
                     redrawChartRealtime();
                 }
             }
         }
-
       } else {
         setDoc(getStateRef(), { gate: 'off', expKey: 'exp1', expName: '實驗1', startTimeMs: null });
       }
@@ -638,7 +795,6 @@
     previewStartTime = null;    
     redrawChartRealtime();
 
-    // ★ 切換頻道時自動從 Firebase 的 names 公佈欄抓取先前的實驗名稱
     try {
         const namesSnap = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'config', 'names'));
         if (namesSnap.exists() && namesSnap.data()[exp]) {
@@ -653,7 +809,6 @@
     unsubscribeRecords = onSnapshot(getRecordsRef(exp), (snapshot) => {
       let latestDoc = null, maxTs = 0;
       
-      // ★ 只有在已經「按下開始」且「不是預覽模式」時，才拿資料庫的歷史紀錄來畫圖
       if (!isLocalPreview && startTimeMs) {
           datasetRealtime.length = 0;
           snapshot.forEach(docSnap => {
@@ -703,12 +858,10 @@
 
     const currentExpName = document.getElementById('expName').value || document.getElementById('selExp').options[document.getElementById('selExp').selectedIndex].text;
 
-    // ★ 關鍵修復：按下開始時，統一將實驗名稱存入 Firebase 的獨立公佈欄
     await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'config', 'names'), {
       [currentExp]: currentExpName
     }, { merge: true });
 
-    // 按下開始時，正式離開預覽模式，並把預覽畫的圖表歸零，準備迎接正式紀錄
     isLocalPreview = false;
     previewStartTime = null;
     datasetRealtime.length = 0;
@@ -725,7 +878,6 @@
   });
 
   document.getElementById('btnPause').addEventListener('click', async () => {
-    // 按下暫停，凍結圖表停在資料庫最後的紀錄
     isLocalPreview = false; 
     await updateDoc(getStateRef(), { gate: 'off' });
     showFloat('info', '已暫停紀錄，正在同步備份...');
@@ -737,22 +889,18 @@
     const ok = await confirmModal('確定清空?', `將刪除「${document.getElementById('selExp').options[document.getElementById('selExp').selectedIndex].text}」的所有系統記錄。`);
     if (!ok) return;
 
-    // 1. 清空 Firebase 歷史資料
     const snap = await getDocs(getRecordsRef(currentExp));
     const batch = writeBatch(db);
     snap.forEach(docSnap => batch.delete(docSnap.ref));
     await batch.commit();
     
-    // 2. 正確通知 GAS 後端清空指定的 Google Sheet 工作表
     try { fetch(`${GAS_URL}?action=clear&exp=${currentExp}`); } catch(e) {} 
     
-    // 3. 狀態重置
     await updateDoc(getStateRef(), { startTimeMs: null });
     document.getElementById('co2').textContent = '--'; 
     document.getElementById('ts').textContent = '--'; 
     updateRiskUI(null);
     
-    // 4. 強制回到預覽模式並重繪圖表
     isLocalPreview = true;
     previewStartTime = null;
     datasetRealtime.length = 0; 
@@ -762,20 +910,13 @@
   });
 
   document.getElementById('btnRedraw').addEventListener('click', () => {
-    if (isGateOn) {
-      showFloat('info', '記錄中，無法使用預覽重繪');
-      return;
-    }
+    if (isGateOn) { showFloat('info', '記錄中，無法使用預覽重繪'); return; }
     
-    // ★ 修正：強制脫離「已暫停(凍結)」狀態，切換回純預覽模式
     isLocalPreview = true;
-    
-    // 洗掉目前的畫布暫存資料並把起點歸零
     datasetRealtime.length = 0; 
     previewStartTime = null;    
     redrawChartRealtime();      
     
-    // 立即更新狀態介面
     document.getElementById('status').textContent = '即時預覽中';
     document.getElementById('ledDot').className = 'dot gray';
     document.getElementById('ledText').textContent = '純預覽不儲存';
@@ -783,7 +924,6 @@
     showFloat('ok', '已回到預覽模式，重新開始繪製');
   });
 
-  // Background Sync
   let isSyncing = false;
   async function performSync() {
     if (!auth.currentUser || isSyncing) return;
@@ -797,10 +937,8 @@
       if (pendingSync.length > 0) {
         d2D.className = 'dot yellow'; d2T.textContent = `備份系統: 同步中(${pendingSync.length})`;
         
-        // 抓取目前輸入的實驗名稱
         const currentExpName = document.getElementById('expName').value || document.getElementById('selExp').options[document.getElementById('selExp').selectedIndex].text;
 
-        // 將 expName (名稱) 與 startTime (真實起點) 一起打包傳送給 GAS
         const res = await fetch(GAS_URL, { 
           method: 'POST', 
           body: JSON.stringify({ 
@@ -831,7 +969,6 @@
     if (isGateOn && startTimeMs) {
       const remainSec = Math.max(0, Math.floor(DUR_MIN_REALTIME * 60 - ((Date.now() - startTimeMs) / 1000)));
       
-      // 計算時、分、秒，並自動補零
       const h = String(Math.floor(remainSec / 3600)).padStart(2, '0');
       const m = String(Math.floor((remainSec % 3600) / 60)).padStart(2, '0');
       const s = String(remainSec % 60).padStart(2, '0');
@@ -843,20 +980,21 @@
   }, 1000);
 
   // ==========================================
-  // 6. View 2: 趨勢比較邏輯
+  // 6. View 2: 趨勢比較與統計分析邏輯
   // ==========================================
+  
   const chartTrend = new Chart(document.getElementById('chartTrend').getContext('2d'), {
     type:'line', data:{ datasets:[] },
-    plugins: [MidLabelPlugin],
+    plugins: [MidLabelPlugin, PickAreaPlugin], 
     options:{
       responsive:true, animation:false, parsing:false, maintainAspectRatio: false,
-      layout:{ padding:{ right:90 }}, 
+      layout:{ padding:{ right:90, top: 30 }}, 
       scales:{
-        x:{ type:'linear', min:0, max:120, title:{display:true, text:'分鐘 (min)'} },
+        x:{ type:'linear', min:0, max:240, title:{display:true, text:'分鐘 (min)'} },
         y:{ beginAtZero:false, suggestedMin:350, suggestedMax:1100, grace:'5%', ticks:{ callback:v=>`${Number(v).toLocaleString()} PPM` } }
       },
       plugins:{
-        legend:{ display:true, labels:{ font:{ size:18 } } },
+        legend:{ display:true, labels:{ font:{ size:18 }, filter: function(item) { return !item.text.includes("迴歸線"); } } },
         riskLines:{ thresholds: riskThresholds },
         decimation:{ enabled:true, algorithm:'min-max' },
         midLabel:{} 
@@ -864,6 +1002,91 @@
       elements:{ point:{ radius:1.5 } }
     }
   });
+
+  // ==========================================
+  // 7. 圖上互動選取的 DOM 事件綁定
+  // ==========================================
+  const canvasTrend = document.getElementById('chartTrend');
+
+  function resetPickMode() {
+      pickMode = null; pickStep = 0; pickTempX = null; hoverX = null;
+      canvasTrend.style.cursor = 'default';
+      
+      const btnL = document.getElementById('btnPickLight');
+      btnL.classList.remove('picking'); btnL.textContent = '🎯 圖上選取';
+      const btnD = document.getElementById('btnPickDark');
+      btnD.classList.remove('picking'); btnD.textContent = '🎯 圖上選取';
+      
+      chartTrend.update('none'); 
+  }
+
+  document.getElementById('btnPickLight').addEventListener('click', () => {
+      if (pickMode === 'light') { resetPickMode(); return; } 
+      resetPickMode();
+      pickMode = 'light'; pickStep = 0;
+      const btn = document.getElementById('btnPickLight');
+      btn.classList.add('picking'); btn.textContent = '👆 點圖選【起點】';
+      canvasTrend.style.cursor = 'crosshair';
+      showFloat('info', '請在上方圖表點擊選擇光照期的「起點」', 3);
+  });
+
+  document.getElementById('btnPickDark').addEventListener('click', () => {
+      if (pickMode === 'dark') { resetPickMode(); return; } 
+      resetPickMode();
+      pickMode = 'dark'; pickStep = 0;
+      const btn = document.getElementById('btnPickDark');
+      btn.classList.add('picking'); btn.textContent = '👆 點圖選【起點】';
+      canvasTrend.style.cursor = 'crosshair';
+      showFloat('info', '請在上方圖表點擊選擇黑暗期的「起點」', 3);
+  });
+
+  canvasTrend.addEventListener('mousemove', (e) => {
+      if (!pickMode) return;
+      const rect = e.target.getBoundingClientRect();
+      const xPos = e.clientX - rect.left;
+      const dataX = chartTrend.scales.x.getValueForPixel(xPos);
+      
+      const maxMin = chartTrend.scales.x.max;
+      hoverX = Math.max(0, Math.min(maxMin, Math.round(dataX)));
+      
+      chartTrend.update('none'); 
+  });
+
+  canvasTrend.addEventListener('mouseleave', () => {
+      if (!pickMode) return;
+      hoverX = null;
+      chartTrend.update('none');
+  });
+
+  canvasTrend.addEventListener('click', (e) => {
+      if (!pickMode || hoverX === null) return;
+      
+      if (pickStep === 0) {
+          pickTempX = hoverX;
+          pickStep = 1;
+          showFloat('info', `已標記起點：${hoverX} 分鐘。請移動滑鼠點選「終點」`, 3);
+          
+          const btnId = pickMode === 'light' ? 'btnPickLight' : 'btnPickDark';
+          document.getElementById(btnId).textContent = '👆 點圖選【終點】';
+      } 
+      else if (pickStep === 1) {
+          const start = Math.min(pickTempX, hoverX);
+          const end = Math.max(pickTempX, hoverX);
+          
+          if(pickMode === 'light') {
+              document.getElementById('lightStart').value = start;
+              document.getElementById('lightEnd').value = end;
+          } else {
+              document.getElementById('darkStart').value = start;
+              document.getElementById('darkEnd').value = end;
+          }
+          
+          showFloat('ok', `區間設定完成！(${start} ~ ${end} 分鐘)`, 3);
+          resetPickMode();
+      }
+      chartTrend.update('none');
+  });
+
 
   function getSelectedExpsTrend(){ return Array.from(document.querySelectorAll('input[name="chkExp"]:checked')).map(el => el.value); }
 
@@ -874,7 +1097,6 @@
         if((await r.json()).ok) updateTrendLabels(r.names);
       } else {
         if (!isAuthReady) return;
-        // ★ 關鍵修復：主系統現在也會去專屬字典抓取正確的實驗名稱！
         const namesSnap = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'config', 'names'));
         if (namesSnap.exists()) {
            updateTrendLabels(namesSnap.data());
@@ -885,9 +1107,18 @@
 
   function updateTrendLabels(namesObj) {
     if(!namesObj) return;
+    const selectExp = document.getElementById('selAnalysisExp');
+    selectExp.innerHTML = ''; 
     KEYS.forEach((k, i)=>{
-      const label = document.querySelector(`input[name="chkExp"][value="${k}"]`)?.parentElement;
-      if (label) label.lastChild.nodeValue = ' ' + `${i+1}.${(namesObj[k] || '').trim() || `實驗${i+1}`}`;
+      const labelText = `${i+1}.${(namesObj[k] || '').trim() || `實驗${i+1}`}`;
+      const labelEl = document.querySelector(`input[name="chkExp"][value="${k}"]`)?.parentElement;
+      if (labelEl) labelEl.lastChild.nodeValue = ' ' + labelText;
+      
+      if(document.querySelector(`input[name="chkExp"][value="${k}"]`).checked) {
+          const opt = document.createElement('option');
+          opt.value = k; opt.textContent = labelText;
+          selectExp.appendChild(opt);
+      }
     });
   }
 
@@ -909,7 +1140,6 @@
       } else {
          if (!isAuthReady) return;
 
-         // 準備 Firebase 實驗名稱對照表
          let firebaseNames = {};
          try {
              const namesSnap = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'config', 'names'));
@@ -923,7 +1153,6 @@
             docs.sort((a,b) => a.ts - b.ts);
             const minTs = docs[0].ts, points = [];
             
-            // 使用專屬字典中的名字，找不到才用預設的
             let expName = firebaseNames[exp] || `實驗${exp.replace('exp','')}`;
             
             for(let d of docs) { const sec = (d.ts - minTs)/1000; if(sec <= dur*60) points.push([sec, d.co2]); }
@@ -935,7 +1164,11 @@
       seriesData.forEach((s) => {
         const color = COLORS[KEYS.indexOf(s.key)] || '#888';
         const points = (Array.isArray(s.points) ? s.points : []).map(p => ({ x: Number(p[0]) / 60, y: Number(p[1]) })).sort((a,b) => a.x - b.x);
-        chartTrend.data.datasets.push({ label: (s.name||'').trim() || `實驗${KEYS.indexOf(s.key)+1}`, data: points, borderColor: color, backgroundColor: color, borderWidth: 2, tension: .2, fill: false });
+        chartTrend.data.datasets.push({ 
+            id: s.key, 
+            label: (s.name||'').trim() || `實驗${KEYS.indexOf(s.key)+1}`, 
+            data: points, borderColor: color, backgroundColor: color, borderWidth: 2, tension: .2, fill: false 
+        });
       });
 
       chartTrend.options.scales.x.max = dur;
@@ -945,7 +1178,12 @@
         chartTrend.options.scales.y.suggestedMin = Math.max(0, Math.min(350, Math.floor(min - pad)));
         chartTrend.options.scales.y.suggestedMax = Math.max(1100, Math.ceil(max + pad));
       }
+      
+      resetPickMode();
       chartTrend.update();
+      
+      loadNamesTrend(document.getElementById('selSource').value);
+      
     } finally { loading.style.display = 'none'; }
   }
 
@@ -954,9 +1192,157 @@
   document.getElementById('selSource').addEventListener('change', (e) => { loadNamesTrend(e.target.value); loadAndDrawTrend(); });
   document.querySelectorAll('input[name="chkExp"]').forEach(el => el.addEventListener('change', loadAndDrawTrend));
 
+
   // ==========================================
-  // 7. 畫面切換控制 & 初始化主程式
+  // 8. 線性迴歸與生物光合/呼吸作用推算模組
   // ==========================================
+  function calculateLinearRegression(points) {
+    if (points.length < 2) return null;
+    let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+    const n = points.length;
+    points.forEach(p => { sumX += p.x; sumY += p.y; sumXY += p.x * p.y; sumXX += p.x * p.x; });
+    
+    const m = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+    const b = (sumY - m * sumX) / n;
+    
+    const meanY = sumY / n;
+    let ssTot = 0, ssRes = 0;
+    points.forEach(p => {
+        const yPred = m * p.x + b;
+        ssTot += Math.pow(p.y - meanY, 2);
+        ssRes += Math.pow(p.y - yPred, 2);
+    });
+    
+    const r2 = ssTot === 0 ? 0 : 1 - (ssRes / ssTot);
+    const sd = Math.sqrt(ssRes / (n - 2)); 
+    
+    const seSlope = sd / Math.sqrt(sumXX - (sumX*sumX)/n);
+    const tStat = Math.abs(m / seSlope);
+    let pValue = "p > 0.05 (不顯著)";
+    if(tStat > 3.29) pValue = "p < 0.001 ***";
+    else if(tStat > 2.58) pValue = "p < 0.01 **";
+    else if(tStat > 1.96) pValue = "p < 0.05 *";
+
+    return { m, b, r2, sd, pValue, startX: points[0].x, endX: points[n-1].x };
+  }
+
+  document.getElementById('btnRunAnalysis').addEventListener('click', () => {
+    resetPickMode();
+
+    const expId = document.getElementById('selAnalysisExp').value;
+    const dataset = chartTrend.data.datasets.find(ds => ds.id === expId);
+    
+    if (!dataset || !dataset.data.length) {
+        showFloat('err', '找不到該實驗數據，請先載入圖表');
+        return;
+    }
+
+    const lStart = Number(document.getElementById('lightStart').value);
+    const lEnd = Number(document.getElementById('lightEnd').value);
+    const dStart = Number(document.getElementById('darkStart').value);
+    const dEnd = Number(document.getElementById('darkEnd').value);
+    
+    // ★ 取得箱體積
+    const vBox = Number(document.getElementById('boxVolume').value) || 12;
+
+    const lightPts = dataset.data.filter(p => p.x >= lStart && p.x <= lEnd);
+    const darkPts = dataset.data.filter(p => p.x >= dStart && p.x <= dEnd);
+
+    if (lightPts.length < 5 || darkPts.length < 5) {
+        showFloat('err', '所選區間資料點太少，請擴大範圍或重新選取');
+        return;
+    }
+
+    const regLight = calculateLinearRegression(lightPts);
+    const regDark = calculateLinearRegression(darkPts);
+
+    chartTrend.data.datasets = chartTrend.data.datasets.filter(ds => !ds.isRegressionLine);
+
+    chartTrend.data.datasets.push({
+        isRegressionLine: true, label: '光照期迴歸線', type: 'line',
+        data: [{x: regLight.startX, y: regLight.m * regLight.startX + regLight.b}, {x: regLight.endX, y: regLight.m * regLight.endX + regLight.b}],
+        borderColor: '#f59e0b', borderDash: [6, 4], borderWidth: 3, pointRadius: 0, fill: false
+    });
+
+    chartTrend.data.datasets.push({
+        isRegressionLine: true, label: '黑暗期迴歸線', type: 'line',
+        data: [{x: regDark.startX, y: regDark.m * regDark.startX + regDark.b}, {x: regDark.endX, y: regDark.m * regDark.endX + regDark.b}],
+        borderColor: '#1e293b', borderDash: [6, 4], borderWidth: 3, pointRadius: 0, fill: false
+    });
+
+    chartTrend.update();
+
+    const tReg = document.getElementById('regressionTbody');
+    tReg.innerHTML = `
+      <tr>
+        <td style="color:#f59e0b; font-weight:bold;">☀️ 光照期</td>
+        <td>${lStart} ~ ${lEnd}</td>
+        <td class="math">y = ${regLight.m.toFixed(4)}x ${regLight.b > 0 ? '+':''} ${regLight.b.toFixed(1)}</td>
+        <td>${regLight.r2.toFixed(4)}</td>
+        <td>± ${regLight.sd.toFixed(2)}</td>
+        <td>${regLight.pValue}</td>
+        <td class="highlight" style="color:#f59e0b;">${regLight.m.toFixed(3)}</td>
+      </tr>
+      <tr>
+        <td style="color:#475569; font-weight:bold;">🌑 黑暗期</td>
+        <td>${dStart} ~ ${dEnd}</td>
+        <td class="math">y = ${regDark.m.toFixed(4)}x ${regDark.b > 0 ? '+':''} ${regDark.b.toFixed(1)}</td>
+        <td>${regDark.r2.toFixed(4)}</td>
+        <td>± ${regDark.sd.toFixed(2)}</td>
+        <td>${regDark.pValue}</td>
+        <td class="highlight" style="color:#475569;">${regDark.m.toFixed(3)}</td>
+      </tr>
+    `;
+
+    const rateResp = regDark.m; 
+    const rateNetPhoto = -regLight.m; 
+    const rateGrossPhoto = rateResp + rateNetPhoto;
+    
+    // ★ 計算換算係數 (PPM/min 轉 mg/hr)
+    // 假設常溫常壓 (25℃, 1atm)，莫耳體積約 24.45 L/mol，CO2分子量 44.01 g/mol
+    // 每小時毫克數 = PPM/min * 60(分) * 體積(L) * (44.01 / 24.45 / 1000)
+    // 簡化常數 = 60 * (44.01 / 24450) ≈ 0.108
+    const coeff = vBox * 0.108;
+
+    const tRate = document.getElementById('rateTbody');
+    tRate.innerHTML = `
+      <tr>
+        <td style="font-weight:bold; color:#ef4444;">🔥 呼吸作用速率 (R)</td>
+        <td class="highlight">${rateResp.toFixed(3)}</td>
+        <td class="highlight" style="color:#b91c1c;">${(rateResp * coeff).toFixed(2)}</td>
+        <td>斜率 (<span class="math">m_dark</span>)</td>
+      </tr>
+      <tr>
+        <td style="font-weight:bold; color:#2563eb;">🌿 淨光合速率 (P_net)</td>
+        <td class="highlight">${rateNetPhoto.toFixed(3)}</td>
+        <td class="highlight" style="color:#1d4ed8;">${(rateNetPhoto * coeff).toFixed(2)}</td>
+        <td>消耗 CO₂ 速率：<span class="math">-(m_light)</span></td>
+      </tr>
+      <tr style="background: #f0fdf4;">
+        <td style="font-weight:800; color:#16a34a; font-size:18px;">🌟 總光合速率 (P_gross)</td>
+        <td class="highlight" style="color:#16a34a;">${rateGrossPhoto.toFixed(3)}</td>
+        <td class="highlight" style="color:#15803d;">${(rateGrossPhoto * coeff).toFixed(2)}</td>
+        <td>淨光合速率 + 呼吸速率</td>
+      </tr>
+    `;
+
+    document.getElementById('analysisResults').style.display = 'block';
+    document.getElementById('analysisResults').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    showFloat('ok', '分析完成！已將 PPM 換算為實際質量速率。');
+  });
+
+  // ==========================================
+  // 9. 畫面切換與其他 UI 事件控制
+  // ==========================================
+  
+  // ★ 原理解說彈出視窗控制
+  document.getElementById('btnShowTheory').addEventListener('click', () => {
+    document.getElementById('theoryModal').style.display = 'flex';
+  });
+  document.getElementById('btnCloseTheory').addEventListener('click', () => {
+    document.getElementById('theoryModal').style.display = 'none';
+  });
+
   document.getElementById('btnSwitchToTrend').addEventListener('click', () => {
     document.getElementById('viewRealtime').classList.remove('active');
     document.getElementById('viewTrend').classList.add('active');
@@ -967,6 +1353,7 @@
   document.getElementById('btnBackToRealtime').addEventListener('click', () => {
     document.getElementById('viewTrend').classList.remove('active');
     document.getElementById('viewRealtime').classList.add('active');
+    resetPickMode(); 
   });
 
   async function initApp() {
