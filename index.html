@@ -130,7 +130,7 @@
     <div class="card">
       <div class="title" style="position:relative;">
         <span class="title-3d">環境二氧化碳即時看板 (自然碳匯)</span>
-        <span style="font-size: 16px; color: #9ca3af; font-weight: normal; margin-left: 8px; vertical-align: bottom;">V.20260324.即時同步繪圖版</span>
+        <span style="font-size: 16px; color: #9ca3af; font-weight: normal; margin-left: 8px; vertical-align: bottom;">V.20260325.全修復版</span>
         <button id="btnLogout" class="btn btn-gray" style="position:absolute; right:0; top:0; font-size:14px; padding:8px 12px;">登出</button>
       </div>
       <div class="grid">
@@ -289,7 +289,8 @@
   // ==========================================
   import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
   import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-  import { getFirestore, collection, doc, setDoc, onSnapshot, updateDoc, writeBatch, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+  // ★ 引入 getDoc 函式
+  import { getFirestore, collection, doc, setDoc, onSnapshot, updateDoc, writeBatch, getDocs, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
   const GAS_URL = "https://script.google.com/macros/s/AKfycbwg6cdyhiKeXSQp3lCf3mwWXtUYu05jJ9EWfxm0vctJeMd4FYh-s5QmsJDhFlp9ctQ7/exec"; 
 
@@ -507,7 +508,7 @@
     }
   };
 
-  Chart.register(RiskLinesPlugin);
+  Chart.register(RiskLinesPlugin); // 只全域註冊危險線，不註冊標籤外掛
 
   // ==========================================
   // 5. View 1: 即時監測與硬體監控邏輯
@@ -636,6 +637,16 @@
     datasetRealtime.length = 0; 
     previewStartTime = null;    
     redrawChartRealtime();
+
+    // ★ 切換頻道時自動從 Firebase 的 names 公佈欄抓取先前的實驗名稱
+    try {
+        const namesSnap = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'config', 'names'));
+        if (namesSnap.exists() && namesSnap.data()[exp]) {
+            document.getElementById('expName').value = namesSnap.data()[exp];
+        } else {
+            document.getElementById('expName').value = '';
+        }
+    } catch(e) {}
     
     if (unsubscribeRecords) unsubscribeRecords();
 
@@ -659,7 +670,6 @@
             document.getElementById('rh').textContent = latestDoc.rh ? latestDoc.rh.toFixed(1) : '--';
             document.getElementById('ts').textContent = new Date(latestDoc.ts).toLocaleString();
             updateRiskUI(latestDoc.co2);
-            if(latestDoc.expName) document.getElementById('expName').value = latestDoc.expName;
           }
       }
     });
@@ -691,7 +701,14 @@
       updateRiskUI(null);
     }
 
-    // ★ 按下開始時，正式離開預覽模式，並把預覽畫的圖表歸零，準備迎接正式紀錄
+    const currentExpName = document.getElementById('expName').value || document.getElementById('selExp').options[document.getElementById('selExp').selectedIndex].text;
+
+    // ★ 關鍵修復：按下開始時，統一將實驗名稱存入 Firebase 的獨立公佈欄
+    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'config', 'names'), {
+      [currentExp]: currentExpName
+    }, { merge: true });
+
+    // 按下開始時，正式離開預覽模式，並把預覽畫的圖表歸零，準備迎接正式紀錄
     isLocalPreview = false;
     previewStartTime = null;
     datasetRealtime.length = 0;
@@ -700,7 +717,7 @@
     await setDoc(getStateRef(), { 
       gate: 'on', 
       expKey: currentExp, 
-      expName: document.getElementById('expName').value || document.getElementById('selExp').options[document.getElementById('selExp').selectedIndex].text, 
+      expName: currentExpName, 
       startTimeMs: Date.now() 
     }, { merge: true });
 
@@ -726,7 +743,7 @@
     snap.forEach(docSnap => batch.delete(docSnap.ref));
     await batch.commit();
     
-    // 2. ★ 修正：正確通知 GAS 後端清空指定的 Google Sheet 工作表
+    // 2. 正確通知 GAS 後端清空指定的 Google Sheet 工作表
     try { fetch(`${GAS_URL}?action=clear&exp=${currentExp}`); } catch(e) {} 
     
     // 3. 狀態重置
@@ -735,7 +752,7 @@
     document.getElementById('ts').textContent = '--'; 
     updateRiskUI(null);
     
-    // 4. ★ 強制回到預覽模式並重繪圖表
+    // 4. 強制回到預覽模式並重繪圖表
     isLocalPreview = true;
     previewStartTime = null;
     datasetRealtime.length = 0; 
@@ -750,14 +767,12 @@
       return;
     }
     
-    // ★ 核心修正：強制脫離「已暫停(凍結)」狀態，切換回純預覽模式
+    // ★ 修正：強制脫離「已暫停(凍結)」狀態，切換回純預覽模式
     isLocalPreview = true;
     
-    // 1. 洗掉目前的畫布暫存資料
+    // 洗掉目前的畫布暫存資料並把起點歸零
     datasetRealtime.length = 0; 
-    // 2. 把預覽時間的起點歸零，讓下一筆資料從 0 分鐘開始畫
     previewStartTime = null;    
-    // 3. 更新圖表畫面 (會瞬間變空白，等待幾秒後新資料進來)
     redrawChartRealtime();      
     
     // 立即更新狀態介面
@@ -782,10 +797,10 @@
       if (pendingSync.length > 0) {
         d2D.className = 'dot yellow'; d2T.textContent = `備份系統: 同步中(${pendingSync.length})`;
         
-        // ★ 抓取目前輸入的實驗名稱
+        // 抓取目前輸入的實驗名稱
         const currentExpName = document.getElementById('expName').value || document.getElementById('selExp').options[document.getElementById('selExp').selectedIndex].text;
 
-        // ★ 將 expName (名稱) 與 startTime (真實起點) 一起打包傳送給 GAS
+        // 將 expName (名稱) 與 startTime (真實起點) 一起打包傳送給 GAS
         const res = await fetch(GAS_URL, { 
           method: 'POST', 
           body: JSON.stringify({ 
@@ -859,13 +874,11 @@
         if((await r.json()).ok) updateTrendLabels(r.names);
       } else {
         if (!isAuthReady) return;
-        const names = {};
-        for (let key of KEYS) {
-           const snap = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', `records_${key}`));
-           let found = false;
-           snap.forEach(d => { if (!found && d.data().expName) { names[key] = d.data().expName; found = true; } });
+        // ★ 關鍵修復：主系統現在也會去專屬字典抓取正確的實驗名稱！
+        const namesSnap = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'config', 'names'));
+        if (namesSnap.exists()) {
+           updateTrendLabels(namesSnap.data());
         }
-        updateTrendLabels(names);
       }
     } catch(e) {}
   }
@@ -895,14 +908,24 @@
          seriesData = j.ok ? j.series : [];
       } else {
          if (!isAuthReady) return;
+
+         // 準備 Firebase 實驗名稱對照表
+         let firebaseNames = {};
+         try {
+             const namesSnap = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'config', 'names'));
+             if (namesSnap.exists()) firebaseNames = namesSnap.data();
+         } catch(e) {}
+
          for (let exp of exps) {
             const snap = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', `records_${exp}`));
             const docs = []; snap.forEach(d => docs.push(d.data()));
             if (docs.length === 0) continue;
             docs.sort((a,b) => a.ts - b.ts);
             const minTs = docs[0].ts, points = [];
-            let expName = `實驗${exp.replace('exp','')}`;
-            for(let d of docs) { if(d.expName) { expName = d.expName; break; } }
+            
+            // 使用專屬字典中的名字，找不到才用預設的
+            let expName = firebaseNames[exp] || `實驗${exp.replace('exp','')}`;
+            
             for(let d of docs) { const sec = (d.ts - minTs)/1000; if(sec <= dur*60) points.push([sec, d.co2]); }
             seriesData.push({ key: exp, name: expName, points });
          }
