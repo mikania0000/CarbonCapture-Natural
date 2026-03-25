@@ -285,7 +285,7 @@
           <thead>
             <tr>
               <th>實驗期間</th>
-              <th>設定區間</th>
+              <th>設定區間 (時長 / 樣本數)</th>
               <th>直線方程式 (y = mx + b)</th>
               <th>決定係數 (R²)</th>
               <th>殘差標準差 (SD)</th>
@@ -1150,6 +1150,7 @@
   function updateTrendLabels(namesObj) {
     if(!namesObj) return;
     const selectExp = document.getElementById('selAnalysisExp');
+    const prevSelected = selectExp.value; // ★ 記住目前選擇的分析實驗
     selectExp.innerHTML = ''; 
     KEYS.forEach((k, i)=>{
       const labelText = `${i+1}.${(namesObj[k] || '').trim() || `實驗${i+1}`}`;
@@ -1162,6 +1163,11 @@
           selectExp.appendChild(opt);
       }
     });
+    
+    // ★ 恢復原本的選擇 (如果該頻道依然被勾選的話)
+    if (prevSelected && Array.from(selectExp.options).some(o => o.value === prevSelected)) {
+        selectExp.value = prevSelected;
+    }
   }
 
   async function loadAndDrawTrend(){
@@ -1318,7 +1324,7 @@
     tReg.innerHTML = `
       <tr>
         <td style="color:#f59e0b; font-weight:bold;">☀️ 光照期</td>
-        <td>${lStart} ~ ${lEnd}</td>
+        <td>${lStart} ~ ${lEnd} 分<br><span style="font-size:14px; color:#64748b;">(共 ${lEnd - lStart} 分鐘 / ${lightPts.length} 筆數據)</span></td>
         <td class="math">y = ${regLight.m.toFixed(4)}x ${regLight.b > 0 ? '+':''} ${regLight.b.toFixed(1)}</td>
         <td>${regLight.r2.toFixed(4)}</td>
         <td>± ${regLight.sd.toFixed(2)}</td>
@@ -1327,7 +1333,7 @@
       </tr>
       <tr>
         <td style="color:#475569; font-weight:bold;">🌑 黑暗期</td>
-        <td>${dStart} ~ ${dEnd}</td>
+        <td>${dStart} ~ ${dEnd} 分<br><span style="font-size:14px; color:#64748b;">(共 ${dEnd - dStart} 分鐘 / ${darkPts.length} 筆數據)</span></td>
         <td class="math">y = ${regDark.m.toFixed(4)}x ${regDark.b > 0 ? '+':''} ${regDark.b.toFixed(1)}</td>
         <td>${regDark.r2.toFixed(4)}</td>
         <td>± ${regDark.sd.toFixed(2)}</td>
@@ -1385,7 +1391,19 @@
   document.getElementById('btnSwitchToTrend').addEventListener('click', () => {
     document.getElementById('viewRealtime').classList.remove('active');
     document.getElementById('viewTrend').classList.add('active');
-    loadNamesTrend(document.getElementById('selSource').value);
+    
+    // ★ 1. 自動勾選您在「即時看板」正在觀看的實驗頻道
+    const currentChk = document.querySelector(`input[name="chkExp"][value="${currentExp}"]`);
+    if (currentChk && !currentChk.checked) currentChk.checked = true;
+    
+    // ★ 2. 確保「進階分析」的下拉選單也預設同步為該頻道
+    loadNamesTrend(document.getElementById('selSource').value).then(() => {
+        const selectExp = document.getElementById('selAnalysisExp');
+        if (Array.from(selectExp.options).some(o => o.value === currentExp)) {
+            selectExp.value = currentExp;
+        }
+    });
+    
     loadAndDrawTrend();
   });
   
