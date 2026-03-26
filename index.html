@@ -1265,24 +1265,27 @@
     try {
       if (source === 'sheet') {
         const r = await fetch(`${GAS_URL}?action=names`);
-        if((await r.json()).ok) updateTrendLabels(r.names);
+        const j = await r.json(); 
+        if(j.ok) updateTrendLabels(j.names); 
       } else {
         if (!isAuthReady) return;
         const namesSnap = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'config', 'names'));
         if (namesSnap.exists()) {
            updateTrendLabels(namesSnap.data());
+        } else {
+           updateTrendLabels({}); 
         }
       }
-    } catch(e) {}
+    } catch(e) { console.error(e); }
   }
 
   function updateTrendLabels(namesObj) {
-    if(!namesObj) return;
+    namesObj = namesObj || {}; 
     const selectExp = document.getElementById('selAnalysisExp');
     const prevSelected = selectExp.value; 
     selectExp.innerHTML = ''; 
     KEYS.forEach((k, i)=>{
-      const labelText = `${i+1}.${(namesObj[k] || '').trim() || `實驗${i+1}`}`;
+      const labelText = (i+1) + '.' + ((namesObj[k] || '').trim() || ('實驗' + (i+1)));
       const labelEl = document.querySelector(`input[name="chkExp"][value="${k}"]`)?.parentElement;
       if (labelEl) labelEl.lastChild.nodeValue = ' ' + labelText;
       
@@ -1358,7 +1361,6 @@
       resetPickMode();
       chartTrend.update();
       
-      // ★ 確保圖表畫完後，才去更新下拉選單的名稱
       await loadNamesTrend(source);
       
     } finally { loading.style.display = 'none'; }
