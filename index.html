@@ -51,11 +51,12 @@
   .btn{border:none; border-radius:12px; padding:12px 20px; font-weight:800; cursor:pointer; box-shadow:0 4px 6px rgba(0,0,0,.05); font-size:18px; line-height:1; transition:0.2s;}
   .btn:active{transform:translateY(2px);}
   .btn:disabled{opacity:0.5; cursor:not-allowed;}
-  .btn-sm{padding:6px 10px; font-size:15px; border-radius:8px;} 
+  .btn-sm{padding:8px 12px; font-size:15px; border-radius:8px;} 
   .btn-green{background:#16a34a; color:#fff;} .btn-red{background:#ef4444; color:#fff;}
   .btn-yellow{background:#f59e0b; color:#111;} .btn-deep{background:#065f46; color:#fff;}
   .btn-pink{background:#ec4899; color:#fff;} .btn-gray{background:#9ca3af; color:#111;} .btn-primary{background:#3b82f6; color:#fff;}
-  .btn-purple{background:#8b5cf6; color:#fff;}
+  .btn-purple{background:#8b5cf6; color:#fff;} .btn-teal{background:#0d9488; color:#fff;}
+  
   .controls{display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-top:16px;}
   select, input[type="text"], input[type="number"]{font-size:18px; padding:8px 12px; border-radius:8px; border:1px solid #cbd5e1;}
   select:focus, input:focus { outline:none; border-color:#2563eb; box-shadow:0 0 0 3px rgba(37,99,235,.15); }
@@ -64,6 +65,7 @@
   /* 動畫特效：選取模式閃爍提示 */
   .picking { animation: pulse 1.5s infinite; background: #ec4899; color: white; border-color: #ec4899;}
   @keyframes pulse { 0% {box-shadow: 0 0 0 0 rgba(236,72,153, 0.7);} 70% {box-shadow: 0 0 0 6px rgba(236,72,153, 0);} 100% {box-shadow: 0 0 0 0 rgba(236,72,153, 0);} }
+  .tool-active { background: #1e293b !important; color: white !important; box-shadow: inset 0 3px 6px rgba(0,0,0,0.4); }
 
   /* Chart Containers */
   .chart-realtime { position: relative; height: 360px; width: 100%; margin-top:10px; }
@@ -77,9 +79,8 @@
   /* Floating Msg & Modal */
   .float-msg{position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); color:#fff; font-size:var(--fs-msg); font-weight:800; padding:14px 22px; border-radius:99px; white-space:nowrap; box-shadow:var(--shadow); opacity:0; pointer-events:none; transition:.2s; z-index:999999;}
   .float-show{opacity:1; transform:translate(-50%,-50%) scale(1.02);}
-  .ok{background:var(--ok);} .err{background:var(--err);} .info{background:var(--info);}
   .modal-backdrop{ position:fixed; inset:0; background:rgba(0,0,0,.35); display:none; align-items:center; justify-content:center; z-index:10000; }
-  .modal{ background:#fff; border-radius:16px; box-shadow:var(--shadow); max-width:400px; width:90%; padding:24px; text-align:center; }
+  .modal{ background:#fff; border-radius:16px; box-shadow:var(--shadow); max-width:800px; width:90%; padding:30px; text-align:left; max-height: 90vh; overflow-y: auto; }
   .modal h3{ margin:0 0 12px; font-size:24px; }
   .modal p{ margin:0 0 20px; font-size:18px; color:#4b5563; line-height:1.5;}
 
@@ -95,6 +96,12 @@
   #loginOverlay { position: fixed; inset: 0; background: var(--page); z-index: 99999; display: flex; flex-direction: column; align-items: center; justify-content: center; }
   .login-card { background: var(--card); padding: 40px; border-radius: var(--radius); box-shadow: var(--shadow); text-align: center; max-width: 450px; width: 90%; }
   .line-warning { margin-top: 16px; color: #b91c1c; font-weight: bold; background: #fee2e2; padding: 12px; border-radius: 8px; display: none; text-align: left; font-size: 15px;}
+  
+  /* 影像辨識專用畫布層疊 */
+  .canvas-container { position: relative; width: 100%; max-width: 800px; margin: 0 auto; background: #e2e8f0; border-radius: 8px; overflow: hidden; border: 2px dashed #94a3b8; }
+  .canvas-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; touch-action: none; }
+  .slider-group { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: bold; background: #f1f5f9; padding: 6px 12px; border-radius: 8px; }
+  .slider-group input[type="range"] { cursor: pointer; }
 </style>
 </head>
 <body>
@@ -125,7 +132,7 @@
     <div class="card">
       <div class="title" style="position:relative;">
         <span class="title-3d">環境二氧化碳即時看板 (自然碳匯)</span>
-        <span style="font-size: 16px; color: #9ca3af; font-weight: normal; margin-left: 8px; vertical-align: bottom;">V.2026.終極分析解說版</span>
+        <span style="font-size: 16px; color: #9ca3af; font-weight: normal; margin-left: 8px; vertical-align: bottom;">V.2026.完美閉環版</span>
         <button id="btnLogout" class="btn btn-gray" style="position:absolute; right:0; top:0; font-size:14px; padding:8px 12px;">登出</button>
       </div>
       <div class="grid">
@@ -195,6 +202,7 @@
         <button id="btnRedraw" type="button" class="btn btn-yellow">即時重繪</button>
         
         <button id="btnSwitchToTrend" type="button" class="btn btn-pink">📊 趨勢分析</button>
+        <button id="btnSwitchToLeafApp" type="button" class="btn btn-teal">🍃 葉面積測量</button>
         
         <div id="remain" class="sub" style="margin-left:auto; font-weight:bold; font-size:22px;">剩餘：-- 時 -- 分 -- 秒</div>
       </div>
@@ -206,7 +214,7 @@
     <div class="card">
       <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 16px;">
         <div class="title" style="margin-bottom:0; font-size:36px;">CO₂ 趨勢分析圖 (多實驗比較)</div>
-        <button id="btnBackToRealtime" class="btn btn-gray">⬅ 返回即時看板</button>
+        <button id="btnBackToRealtimeTrend" class="btn btn-gray">⬅ 返回即時看板</button>
       </div>
 
       <div class="row" style="background: #f8fafc; padding: 12px; border-radius: 12px; border: 1px solid #e2e8f0;">
@@ -252,7 +260,7 @@
     <!-- ★ 植物光合/呼吸作用進階分析模組 -->
     <div class="card" style="margin-top: 16px; background: #fffbeb; border: 1px solid #fde68a;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
-        <div class="title" style="font-size: 26px; margin-bottom: 0;">🔬 植物光合/呼吸作用進階分析</div>
+        <div class="title" style="font-size: 26px; margin-bottom: 0;">🔬 階段一：趨勢圖線性迴歸分析</div>
         <button id="btnShowTheory" class="btn btn-primary" style="padding: 8px 16px; display: flex; align-items: center; gap: 6px;">📖 原理解說</button>
       </div>
       <p style="color: #64748b; font-size: 16px; margin-top: 0;">請選擇分析的頻道，並直接點擊「🎯圖上選取」在上方圖表框選光照/黑暗區間，系統將自動推算反應速率。</p>
@@ -262,7 +270,6 @@
         <select id="selAnalysisExp" style="font-weight: bold; color: #0369a1; background:#f0f9ff;"></select>
       </div>
       
-      <!-- 互動選取與體積輸入區塊 -->
       <div class="row" style="margin-top: 12px; background: #fef3c7; padding: 12px; border-radius: 8px; align-items: center;">
         <label class="sub" style="color: #d97706; margin-right: 4px;">☀️ 光照期：</label>
         <input type="number" id="lightStart" value="10" style="width:70px"> <span class="sub">~</span> <input type="number" id="lightEnd" value="120" style="width:70px">
@@ -278,7 +285,6 @@
         <button id="btnRunAnalysis" class="btn btn-purple" style="margin-left:auto; padding: 10px 16px;">⚡ 執行迴歸分析</button>
       </div>
       
-      <!-- 統計分析結果表格 -->
       <div id="analysisResults" style="display:none; margin-top: 24px; animation: fadeIn 0.5s ease;">
         <h3 style="margin-bottom: 8px; color: #1e293b;">📊 1. 區段線性迴歸分析結果</h3>
         <table class="analysis-table">
@@ -296,18 +302,159 @@
           <tbody id="regressionTbody"></tbody>
         </table>
 
-        <h3 style="margin-top: 24px; margin-bottom: 8px; color: #1e293b;">🌱 2. 光合與呼吸作用速率推算表</h3>
+        <h3 style="margin-top: 24px; margin-bottom: 8px; color: #1e293b;">🌱 2. 總質量速率推算表 (尚未除以葉面積)</h3>
         <table class="analysis-table">
           <thead>
             <tr>
               <th style="width: 20%;">作用類型</th>
               <th style="width: 20%;">濃度速率 (PPM / min)</th>
-              <th style="width: 20%;">質量速率 (mg / hr)</th>
+              <th style="width: 20%;">總質量速率 (mg / hr)</th>
               <th style="width: 40%;">推導邏輯</th>
             </tr>
           </thead>
           <tbody id="rateTbody"></tbody>
         </table>
+      </div>
+    </div>
+    
+    <!-- ★ 全新：🌿 階段二：標準化光合速率計算 (可自由連動與微調面積) -->
+    <div id="phase2Container" class="card" style="display:none; margin-top: 16px; background: #ecfdf5; border: 1px solid #6ee7b7; animation: fadeIn 0.5s ease;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
+        <div class="title" style="font-size: 26px; margin-bottom: 0; color: #047857;">🌿 階段二：標準化光合速率計算</div>
+      </div>
+      <p style="color: #065f46; font-size: 16px; margin-top: 0;">為求跨實驗可比較性，請載入「🍃葉面積測量」之總面積結果，或手動輸入數值以進行最終標準化。</p>
+
+      <div class="row" style="align-items: center; background: #d1fae5; padding: 12px; border-radius: 8px;">
+        <label class="sub" style="color: #065f46; font-weight:bold;">總葉面積 (dm²)：</label>
+        <input type="number" id="inputTotalLeafArea" value="0.00" step="0.01" style="width:100px; font-weight:bold; color:#16a34a; font-size:20px; text-align:center;">
+        <button id="btnFetchLeafArea" class="btn btn-sm btn-teal" style="margin-left: 12px;">🔄 載入最新測量結果</button>
+        <button id="btnGoToLeafApp" class="btn btn-sm btn-primary" style="margin-left: auto;">🍃 前往 AI 測量</button>
+      </div>
+
+      <div id="finalRateContainer" style="display:block; margin-top: 16px; padding: 20px; background:#fff; border-radius:8px; text-align:center; border: 2px dashed #10b981;">
+         <h4 style="margin:0 0 8px 0; color:#047857; font-size:20px;">🏆 最終標準化總光合速率</h4>
+         <div style="font-size: 40px; font-weight: 900; color: #16a34a; line-height: 1.2;" id="finalGrossRateView2">--</div>
+         <div style="font-size: 18px; color: #64748b; font-weight: bold; margin-top: 4px;">mg / hr / dm²</div>
+         <div style="font-size: 14px; color: #94a3b8; margin-top: 8px;">(階段一總質量速率 ÷ 上方總葉面積)</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== View 3: 葉面積測量與紀錄 (全新) ==================== -->
+  <div id="viewLeaf" class="view-section">
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 16px;">
+        <div style="display:flex; align-items:center; gap: 16px; flex-wrap:wrap;">
+            <div class="title" style="margin-bottom:0; font-size:36px; color:#0f766e;">🍃 葉面積 AI 影像測量系統</div>
+            <!-- ★ 專屬葉面積的原理解說按鈕 -->
+            <button id="btnShowLeafTheory" class="btn btn-primary" style="padding: 8px 16px; display: flex; align-items: center; gap: 6px;">📖 測量原理</button>
+        </div>
+        <button id="btnBackFromLeaf" class="btn btn-gray">⬅ 返回趨勢分析</button>
+      </div>
+      <p style="color: #475569; font-size: 16px; margin-top: 0; margin-bottom: 20px;">
+        請在白紙上繪製 <b>5x5 cm 黑色方塊 (25 cm²)</b> 作為比例尺，將葉片平鋪其上後垂直拍照。上傳照片即可進行智能像素換算。
+      </p>
+
+      <!-- 影像控制工具列 -->
+      <div class="row" style="background: #f0fdf4; padding: 16px; border-radius: 12px; border: 1px solid #a7f3d0; margin-bottom:16px;">
+        <label class="btn btn-teal" style="cursor: pointer; padding: 10px 20px; box-shadow: 0 4px 6px rgba(13,148,136,0.3);">
+          📸 上傳照片
+          <input type="file" id="leafUpload" accept="image/*" style="display: none;">
+        </label>
+        
+        <div style="width:2px; height:30px; background:#cbd5e1; margin:0 8px;"></div>
+        
+        <div class="slider-group">
+          🌞 亮度 <input type="range" id="leafBrightness" min="-100" max="100" value="0" style="width:80px">
+        </div>
+        <div class="slider-group">
+          🌗 對比 <input type="range" id="leafContrast" min="-100" max="100" value="0" style="width:80px">
+        </div>
+      </div>
+
+      <div class="row" style="background: #f8fafc; padding: 12px 16px; border-radius: 12px; border: 1px solid #e2e8f0; align-items:center;">
+        <span class="sub" style="margin:0; margin-right:8px; color:#334155;">分析工具：</span>
+        <button id="btnToolRef" class="btn btn-sm btn-gray">1️⃣ 框選基準黑塊</button>
+        <button id="btnToolLeaf" class="btn btn-sm btn-gray">2️⃣ 框選葉片區域</button>
+        <button id="btnToolBrush" class="btn btn-sm btn-gray">🖌️ 補色筆刷</button>
+        <button id="btnToolEraser" class="btn btn-sm btn-gray">🧽 橡皮擦</button>
+        <button id="btnToolClear" class="btn btn-sm btn-red" style="margin-left:auto;">🗑️ 清除所有框線</button>
+      </div>
+
+      <div class="row" style="background: #f8fafc; padding: 12px 16px; border-radius: 12px; border: 1px solid #e2e8f0; margin-top:8px;">
+        <div class="slider-group" style="background: #dbeafe;">
+          🟦 基準塊閥值 (越小越嚴格) <input type="range" id="threshRef" min="0" max="255" value="80" style="width:120px">
+        </div>
+        <div class="slider-group" style="background: #fee2e2;">
+          🟥 葉片閥值 (排除白色背景) <input type="range" id="threshLeaf" min="0" max="255" value="180" style="width:120px">
+        </div>
+        <div class="slider-group" style="margin-left:auto;">
+          筆刷大小 <input type="range" id="brushSize" min="5" max="50" value="20" style="width:80px">
+        </div>
+      </div>
+
+      <div class="grid" style="margin-top: 20px; grid-template-columns: 2fr 1fr;">
+        <!-- 左側：影像畫布區 -->
+        <div class="canvas-container" id="leafCanvasContainer" style="height: 500px;">
+          <canvas id="imgCanvas" class="canvas-layer"></canvas>
+          <canvas id="maskCanvas" class="canvas-layer" style="opacity: 0.6; pointer-events:none;"></canvas>
+          <canvas id="uiCanvas" class="canvas-layer" style="cursor: crosshair;"></canvas>
+          <div id="leafCanvasTip" style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); color:#64748b; font-weight:bold; font-size:20px; pointer-events:none;">請先上傳照片以進行分析</div>
+        </div>
+
+        <!-- 右側：結果與紀錄庫 -->
+        <div style="display:flex; flex-direction:column; gap:16px;">
+          
+          <div class="card" style="background: #fff; padding:16px; border: 2px solid #0d9488;">
+            <h4 style="margin:0 0 12px 0; color:#0f766e; font-size:20px; border-bottom:1px dashed #cbd5e1; padding-bottom:8px;">📐 當前運算結果</h4>
+            <div style="font-size:16px; line-height:1.8; color:#334155;">
+              基準塊像素：<span id="resRefPx" style="font-weight:bold; color:#2563eb;">0</span> px<br>
+              葉片總像素：<span id="resLeafPx" style="font-weight:bold; color:#ef4444;">0</span> px<br>
+              <div style="margin-top:8px; background:#f1f5f9; padding:8px; border-radius:6px; font-family:monospace; color:#db2777; font-weight:bold; font-size:14px;">
+                (葉片Px ÷ 基準Px) × 25 cm²
+              </div>
+            </div>
+            <div style="margin-top:12px; font-size:28px; font-weight:900; color:#16a34a; text-align:center;">
+              <span id="resArea">0.00</span> <span style="font-size:16px; color:#64748b;">cm²</span>
+            </div>
+            
+            <div style="margin-top:16px; display:flex; flex-direction:column; gap:8px;">
+              <input type="text" id="leafRecordName" placeholder="例如：光2暗2 葉片A" style="width:100%; box-sizing:border-box;">
+              <div style="display:flex; gap:8px;">
+                 <button id="btnCalcLeafArea" class="btn btn-sm btn-purple" disabled style="flex:1;">✨ 執行計算</button>
+                 <button id="btnSaveLeafRecord" class="btn btn-sm btn-yellow" style="flex:1;">💾 儲存</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="card" style="background: #fff; padding:16px; flex-grow:1; display:flex; flex-direction:column;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+              <h4 style="margin:0; color:#1e293b; font-size:18px;">📁 面積紀錄庫</h4>
+              <button id="btnUploadLeafToGAS" class="btn btn-sm btn-primary" style="padding:4px 10px; font-size:13px;">☁️ 上傳試算表</button>
+            </div>
+            <div style="overflow-y:auto; max-height:200px; border:1px solid #e2e8f0; border-radius:6px;">
+              <table style="width:100%; border-collapse:collapse; text-align:left; font-size:14px;">
+                <thead style="background:#f8fafc; position:sticky; top:0;">
+                  <tr>
+                    <th style="padding:8px; border-bottom:1px solid #cbd5e1;">名稱</th>
+                    <th style="padding:8px; border-bottom:1px solid #cbd5e1;">面積(cm²)</th>
+                    <th style="padding:8px; border-bottom:1px solid #cbd5e1; text-align:center;">操作</th>
+                  </tr>
+                </thead>
+                <tbody id="leafRecordTbody">
+                  <!-- JS動態生成 -->
+                </tbody>
+              </table>
+            </div>
+            <div style="margin-top:auto; padding-top:12px; border-top:2px dashed #cbd5e1; display:flex; justify-content:space-between; align-items:flex-end;">
+              <span style="font-weight:bold; color:#475569;">總葉面積：</span>
+              <div style="text-align:right;">
+                <span id="totalLeafArea" style="font-size:24px; font-weight:900; color:#0ea5e9;">0.00</span> <span style="font-size:14px; color:#64748b;">cm²</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
       </div>
     </div>
   </div>
@@ -317,30 +464,25 @@
 <!-- Global Floating Elements -->
 <div id="float" class="float-msg"></div>
 
-<!-- ★ 原理解說彈出視窗 (已補齊乾旱、葉面積與所有統計說明) -->
+<!-- ★ 光合作用原理解說彈出視窗 -->
 <div id="theoryModal" class="modal-backdrop" style="z-index: 100001;">
-  <div class="modal" style="max-width: 800px; max-height: 90vh; overflow-y: auto; text-align: left; padding: 30px;">
+  <div class="modal">
     <h2 style="margin-top:0; color:#0f172a; border-bottom:2px solid #e2e8f0; padding-bottom:12px; font-size: 28px;">🌱 植物光合與呼吸作用：速率推導原理與統計分析</h2>
     
     <h3 style="color:#d97706; margin-top:24px; font-size: 22px;">一、 黑暗期：找出「呼吸作用速率 (R)」</h3>
     <ul style="font-size: 18px; line-height: 1.6; color: #334155;">
-        <li><b>環境條件：</b>沒有光照。</li>
-        <li><b>生理反應：</b>葉綠體停止運作，粒線體持續進行<b>呼吸作用</b>。</li>
         <li><b>公式推導：</b>箱內 CO₂ 濃度的上升速度，完全等於呼吸作用產生的速度。<br>
         <span class="math" style="display:inline-block; margin-top:6px; font-size:18px;">R = m_dark</span> (黑暗期的斜率)</li>
     </ul>
 
     <h3 style="color:#2563eb; margin-top:24px; font-size: 22px;">二、 光照期：找出「淨光合作用速率 (P_net)」</h3>
     <ul style="font-size: 18px; line-height: 1.6; color: #334155;">
-        <li><b>環境條件：</b>給予光照。</li>
-        <li><b>生理反應：</b>葉綠體進行光合作用 (消耗 CO₂)，粒線體進行呼吸作用 (產生 CO₂)。</li>
-        <li><b>公式推導：</b>感測器測得的濃度下降，是兩者抵銷後的「淨變化量」。為了取正值，將斜率加上負號：<br>
+        <li><b>公式推導：</b>感測器測得的濃度下降，是光合與呼吸抵銷後的「淨變化量」。為了取正值，將斜率加上負號：<br>
         <span class="math" style="display:inline-block; margin-top:6px; font-size:18px;">P_net = -(m_light)</span></li>
     </ul>
 
     <h3 style="color:#16a34a; margin-top:24px; font-size: 22px;">三、 終極目標：推算「總光合作用速率 (P_gross)」</h3>
     <ul style="font-size: 18px; line-height: 1.6; color: #334155;">
-        <li><b>核心概念：</b>光照期看到的 CO₂ 下降量，是已經被呼吸作用「偷偷抵銷掉一部分」的結果。想知道真正吸收了多少，必須把呼吸作用吐出來的加回去。</li>
         <li><b>公式推導：</b><br>
         <div style="background:#f0fdf4; padding:12px; border-radius:8px; margin-top:8px; border:1px solid #bbf7d0;">
           總光合作用 = 淨光合作用 + 呼吸作用<br>
@@ -350,65 +492,54 @@
     </ul>
 
     <h3 style="color:#0ea5e9; margin-top:24px; font-size: 22px;">📈 四、 統計數據意義解析 (線性迴歸)</h3>
-    <p style="font-size: 16px; line-height: 1.6; color: #334155; margin-bottom: 8px;">系統自動算出的迴歸數據，能幫助我們判斷實驗的「可靠度」：</p>
     <ul style="font-size: 16px; line-height: 1.6; color: #334155; background: #f0f9ff; padding: 16px 24px; border-radius: 8px; border: 1px solid #bae6fd;">
-        <li><b>決定係數 (R²)：</b> 代表數據與直線的「貼合程度」(範圍 0~1)。越接近 1，表示 CO₂ 濃度變化越穩定、越呈現完美直線（代表實驗越精準）。若低於 0.8，可能代表環境有干擾或植物還在適應。</li>
-        <li style="margin-top: 10px;"><b>殘差標準差 (SD)：</b> 代表實際數據偏離直線的「平均誤差距離」。數值越小，代表數據越集中、感測器雜訊越低。</li>
-        <li style="margin-top: 10px;"><b>P 檢定值 (P-value)：</b> 檢定算出的反應速率是否「真實存在」，而非隨機誤差。
-          <ul style="margin-top: 4px; margin-bottom: 0;">
-            <li><code>p < 0.05 *</code>：顯著（確實有反應）</li>
-            <li><code>p < 0.01 **</code>：極顯著</li>
-            <li><code style="color:#e11d48; font-weight:bold;">p < 0.001 ***</code>：極度顯著（非常有信心植物正在作用，絕非誤差）</li>
-          </ul>
-        </li>
+        <li><b>決定係數 (R²)：</b> 越接近 1，表示 CO₂ 濃度變化越穩定、越呈現完美直線（代表實驗越精準）。</li>
+        <li style="margin-top: 10px;"><b>殘差標準差 (SD)：</b> 代表實際數據偏離直線的「平均誤差距離」。數值越小代表雜訊越低。</li>
+        <li style="margin-top: 10px;"><b>P 檢定值：</b> <code style="color:#e11d48; font-weight:bold;">p < 0.001 ***</code> 代表極度顯著，非常有信心植物正在作用，絕非感測器誤差。</li>
     </ul>
 
     <h3 style="color:#8b5cf6; margin-top:24px; font-size: 22px;">🌟 五、 進階換算：將 PPM 轉換為實際質量 (mg/hr)</h3>
-    <p style="font-size: 18px; line-height: 1.6; color: #334155;">PPM 只是體積比例。為了計算吸收了幾毫克的 CO₂，必須帶入「實驗箱體積 (V_box)」並運用理想氣體定律 (常溫常壓 25℃, 1atm)。</p>
-    
-    <div style="background:#f8fafc; padding:16px; border-radius:8px; margin-top:12px; border: 1px dashed #cbd5e1;">
-        <p style="margin:0 0 8px 0; font-weight:bold; color:#475569;">💡 公式推導過程：</p>
-        <ol style="font-size: 16px; line-height: 1.6; color: #475569; margin-top:0;">
-            <li><b>體積換算：</b> 1 ppm = 1 μL / L。每分鐘 CO₂ 改變的體積 (μL) = <code>PPM/min × V_box(L)</code>。</li>
-            <li><b>莫耳數換算：</b> 在 25℃, 1atm 下，莫耳體積約為 24.45 L/mol。將 μL 轉為莫耳數 = <code>(μL × 10⁻⁶) / 24.45</code>。</li>
-            <li><b>質量換算：</b> CO₂ 分子量為 44.01 g/mol。質量 (mg) = <code>莫耳數 × 44.01 × 1000</code>。</li>
-            <li><b>時間換算：</b> 乘以 60 將「每分鐘」換為「每小時」。<br>
-                <span style="color:#0f172a; font-weight:bold;">常數整合：</span> <code>60 × (44.01 / 24450) ≈ 0.108</code>
-            </li>
-        </ol>
-    </div>
-
     <div style="background:#f5f3ff; padding:16px; border-radius:8px; margin-top:12px; border: 1px solid #ddd6fe;">
-        <b style="color:#6d28d9;">最終綜合換算公式：</b><br>
+        <b style="color:#6d28d9;">最終綜合換算公式 (常溫常壓)：</b><br>
         <span class="math" style="display:block; margin-top:8px; font-size:18px;">質量速率 (mg/hr) ≈ 濃度速率 (PPM/min) × V_box(L) × 0.108</span>
     </div>
 
-    <h3 style="color:#ca8a04; margin-top:24px; font-size: 22px;">📏 六、 實驗技巧：葉面積 (Leaf Area) 的標準化推估</h3>
-    <p style="font-size: 16px; line-height: 1.6; color: #334155; margin-bottom: 8px;">為了讓不同大小的植物實驗具備「可比較性」，必須將算出的總質量速率除以總葉面積，得出標準單位：<b>mg / hr / dm²</b>。</p>
-    <ul style="font-size: 16px; line-height: 1.6; color: #334155; background: #fefce8; padding: 16px 24px; border-radius: 8px; border: 1px solid #fef08a;">
-        <li><b>影像分析法 (最推薦)：</b> 將葉片平鋪，旁邊放一枚 10 元硬幣當比例尺垂直拍照。使用免費軟體 <b>ImageJ</b> 圈定比例尺並設定色彩閥值，即可一鍵精準算出面積。</li>
-        <li style="margin-top:8px;"><b>剪紙稱重法：</b> 將葉片輪廓畫在紙上並剪下稱重 (W1)，再剪下一塊 10x10 cm (100 cm²) 的同款紙稱重 (W2)。葉面積 = (W1 / W2) × 100。</li>
+    <div style="text-align:center; margin-top: 32px;">
+      <button id="btnCloseTheory" class="btn btn-gray" style="font-size: 20px; padding: 10px 30px;">關閉解說</button>
+    </div>
+  </div>
+</div>
+
+<!-- ★ 全新：葉面積專屬測量原理解說彈出視窗 -->
+<div id="leafTheoryModal" class="modal-backdrop" style="z-index: 100001;">
+  <div class="modal" style="max-width: 800px; max-height: 90vh; overflow-y: auto; text-align: left; padding: 30px;">
+    <h2 style="margin-top:0; color:#0f766e; border-bottom:2px solid #ccfbf1; padding-bottom:12px; font-size: 28px;">🍃 葉面積測量：原理解說與文獻參考</h2>
+    
+    <h3 style="color:#047857; margin-top:24px; font-size: 22px;">一、 為什麼必須測量「總葉面積」？</h3>
+    <ul style="font-size: 18px; line-height: 1.6; color: #334155;">
+        <li><b>誤差來源：</b> 在密閉箱實驗中，被遮擋的下層葉片雖然光合作用較弱，但<b>仍持續進行全速的呼吸作用</b>。</li>
+        <li><b>學術標準：</b> 若直接用手機從正上方拍攝整盆植物，測量到的僅是「樹冠投影面積」。由於蔓生植物(如黃金葛)葉片重疊嚴重(葉面積指數 LAI > 1)，只算投影面積會導致<b>單位光合速率被嚴重高估</b>。</li>
+        <li><b>結論：</b> 為求跨實驗的絕對可比較性，必須將全數葉片採下平鋪(或使用紙片描圖法)，取得無重疊之「絕對總葉面積」。</li>
     </ul>
 
-    <h3 style="color:#059669; margin-top:24px; font-size: 22px;">📊 七、 實驗文獻參考數據 (逆境對光合作用之影響)</h3>
-    <p style="font-size: 16px; line-height: 1.6; color: #334155; margin-bottom: 8px;">在探討逆境對植物的影響時，可參考以下學術文獻之典型數據與機制：</p>
-    <ul style="font-size: 16px; line-height: 1.6; color: #334155; background: #ecfdf5; padding: 16px 24px; border-radius: 8px;">
-        <li><b>最適溫度 (25℃ ~ 30℃)：</b><br> 一般 C3 植物在此溫度下，淨光合速率通常落在 <b>15 ~ 30 mg CO₂ / dm² / hr</b> 之間。</li>
-        <li style="margin-top: 10px;"><b>低溫逆境/寒流 (10℃ ~ 15℃)：</b><br> 低溫會導致酵素反應變慢及氣孔部分關閉。文獻指出，此溫度下的淨光合速率常會驟降至 <b>5 ~ 10 mg CO₂ / dm² / hr</b>（僅剩適溫時的 30% ~ 50%）。</li>
-        <li style="margin-top: 10px;"><b>水分逆境/乾旱的機制影響：</b><br> 植物遇乾旱會分泌離層酸 (ABA) 導致「氣孔關閉」，使得 <b>光合速率在初期就會劇烈下降</b>；但為了修復逆境損傷，<b>呼吸作用可能維持不變甚至微幅上升</b>。</li>
+    <h3 style="color:#2563eb; margin-top:24px; font-size: 22px;">二、 影像像素比例法 (Pixel Ratio Method)</h3>
+    <ul style="font-size: 18px; line-height: 1.6; color: #334155;">
+        <li><b>運算原理：</b> 利用 HTML5 Canvas 讀取照片陣列。程式首先計算已知面積的「參考物 (25 cm² 黑色方塊)」在照片中佔用了多少個深色像素 ($P_{ref}$)。接著計算葉片區域中非白色的像素總數 ($P_{leaf}$)。</li>
+        <li><b>面積換算公式：</b><br>
+        <div style="background:#eff6ff; padding:12px; border-radius:8px; margin-top:8px; border:1px solid #bfdbfe; font-family:monospace; font-size: 18px; color:#1d4ed8; font-weight:bold;">
+          葉面積 (cm²) = ( P_leaf / P_ref ) × 25
+        </div>
+        </li>
     </ul>
 
-    <h3 style="color:#475569; margin-top:24px; font-size: 22px;">📚 八、 參考文獻</h3>
-    <ul style="font-size: 15px; line-height: 1.6; color: #334155;">
-        <li>Taiz, L., Zeiger, E., Møller, I. M., & Murphy, A. (2015). <i>Plant Physiology and Development</i> (6th ed.). Sinauer Associates. </li>
-        <li>Berry, J., & Bjorkman, O. (1980). Photosynthetic response and adaptation to temperature in higher plants. <i>Annual Review of Plant Physiology, 31</i>(1), 491-543.</li>
-        <li>Flexas, J., & Medrano, H. (2002). Energy dissipation in C3 plants under drought. <i>Functional Plant Biology, 53</i>(4), 389-404.</li>
-        <li>Atkin, O. K., & Macherel, D. (2009). The crucial role of plant mitochondria in orchestrating drought tolerance. <i>Annals of Botany, 103</i>(4), 581-597.</li>
-        <li>Schneider, C. A., Rasband, W. S., & Eliceiri, K. W. (2012). NIH Image to ImageJ: 25 years of image analysis. <i>Nature methods, 9</i>(7), 671-675.</li>
+    <h3 style="color:#8b5cf6; margin-top:24px; font-size: 22px;">三、 與學術級軟體 ImageJ 的比較</h3>
+    <ul style="font-size: 16px; line-height: 1.6; color: #334155; background: #f5f3ff; padding: 16px 24px; border-radius: 8px; border: 1px solid #ddd6fe;">
+        <li>學術界量測葉面積之黃金標準為美國國衛院 (NIH) 開發之 <b>ImageJ</b> 軟體 <i>(Schneider et al., 2012)</i>。</li>
+        <li>本系統採用與 ImageJ 完全相同的<b>「色彩閥值 (Thresholding) 演算法」</b>，將 RGB 轉化並萃取特定明度區間的像素，更進一步結合了「筆刷微調功能」，達到與學術軟體一致的精準度，且無需額外安裝軟體即可於前端無縫完成運算。</li>
     </ul>
 
     <div style="text-align:center; margin-top: 32px;">
-      <button id="btnCloseTheory" class="btn btn-gray" style="font-size: 20px; padding: 10px 30px;">關閉解說</button>
+      <button id="btnCloseLeafTheory" class="btn btn-gray" style="font-size: 20px; padding: 10px 30px;">關閉解說</button>
     </div>
   </div>
 </div>
@@ -456,6 +587,9 @@
   const KEYS = ['exp1','exp2','exp3','exp4','exp5','exp6','exp7','exp8','exp9','exp10'];
   const COLORS = ['#ef4444','#10b981','#3b82f6','#f59e0b','#8b5cf6','#06b6d4','#b45309','#6b7280','#ec4899','#14b8a6'];
   const riskThresholds = [ { y:450, c:'#22c55e', t:'450 ppm' }, { y:700, c:'#84cc16', t:'700 ppm' }, { y:1000, c:'#eab308', t:'1000 ppm' } ];
+
+  // ★ 全域變數紀錄階段一算出的「總質量速率」
+  let globalGrossRateMgHr = null;
 
   function showFloat(type, text, seconds=3){
     const map={ok:'✅ ',err:'❌ ',info:'💡 '};
@@ -1045,9 +1179,6 @@
     }
   });
 
-  // ==========================================
-  // 7. 圖上互動選取的 DOM 事件綁定
-  // ==========================================
   const canvasTrend = document.getElementById('chartTrend');
 
   function resetPickMode() {
@@ -1129,7 +1260,6 @@
       chartTrend.update('none');
   });
 
-
   function getSelectedExpsTrend(){ return Array.from(document.querySelectorAll('input[name="chkExp"]:checked')).map(el => el.value); }
 
   async function loadNamesTrend(source) {
@@ -1150,7 +1280,7 @@
   function updateTrendLabels(namesObj) {
     if(!namesObj) return;
     const selectExp = document.getElementById('selAnalysisExp');
-    const prevSelected = selectExp.value; // ★ 記住目前選擇的分析實驗
+    const prevSelected = selectExp.value; 
     selectExp.innerHTML = ''; 
     KEYS.forEach((k, i)=>{
       const labelText = `${i+1}.${(namesObj[k] || '').trim() || `實驗${i+1}`}`;
@@ -1164,7 +1294,6 @@
       }
     });
     
-    // ★ 恢復原本的選擇 (如果該頻道依然被勾選的話)
     if (prevSelected && Array.from(selectExp.options).some(o => o.value === prevSelected)) {
         selectExp.value = prevSelected;
     }
@@ -1240,10 +1369,6 @@
   document.getElementById('selSource').addEventListener('change', (e) => { loadNamesTrend(e.target.value); loadAndDrawTrend(); });
   document.querySelectorAll('input[name="chkExp"]').forEach(el => el.addEventListener('change', loadAndDrawTrend));
 
-
-  // ==========================================
-  // 8. 線性迴歸與生物光合/呼吸作用推算模組
-  // ==========================================
   function calculateLinearRegression(points) {
     if (points.length < 2) return null;
     let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
@@ -1274,32 +1399,26 @@
     return { m, b, r2, sd, pValue, startX: points[0].x, endX: points[n-1].x };
   }
 
+  // ★ 趨勢圖 View 2 的「執行迴歸分析」
   document.getElementById('btnRunAnalysis').addEventListener('click', () => {
     resetPickMode();
 
     const expId = document.getElementById('selAnalysisExp').value;
     const dataset = chartTrend.data.datasets.find(ds => ds.id === expId);
     
-    if (!dataset || !dataset.data.length) {
-        showFloat('err', '找不到該實驗數據，請先載入圖表');
-        return;
-    }
+    if (!dataset || !dataset.data.length) { showFloat('err', '找不到該實驗數據，請先載入圖表'); return; }
 
     const lStart = Number(document.getElementById('lightStart').value);
     const lEnd = Number(document.getElementById('lightEnd').value);
     const dStart = Number(document.getElementById('darkStart').value);
     const dEnd = Number(document.getElementById('darkEnd').value);
     
-    // 取得箱體積
     const vBox = Number(document.getElementById('boxVolume').value) || 12;
 
     const lightPts = dataset.data.filter(p => p.x >= lStart && p.x <= lEnd);
     const darkPts = dataset.data.filter(p => p.x >= dStart && p.x <= dEnd);
 
-    if (lightPts.length < 5 || darkPts.length < 5) {
-        showFloat('err', '所選區間資料點太少，請擴大範圍或重新選取');
-        return;
-    }
+    if (lightPts.length < 5 || darkPts.length < 5) { showFloat('err', '所選區間資料點太少，請擴大範圍'); return; }
 
     const regLight = calculateLinearRegression(lightPts);
     const regDark = calculateLinearRegression(darkPts);
@@ -1324,7 +1443,7 @@
     tReg.innerHTML = `
       <tr>
         <td style="color:#f59e0b; font-weight:bold;">☀️ 光照期</td>
-        <td>${lStart} ~ ${lEnd} 分<br><span style="font-size:14px; color:#64748b;">(共 ${lEnd - lStart} 分鐘 / ${lightPts.length} 筆數據)</span></td>
+        <td>${lStart} ~ ${lEnd} 分<br><span style="font-size:14px; color:#64748b;">(共 ${lEnd - lStart} 分鐘 / ${lightPts.length} 筆)</span></td>
         <td class="math">y = ${regLight.m.toFixed(4)}x ${regLight.b > 0 ? '+':''} ${regLight.b.toFixed(1)}</td>
         <td>${regLight.r2.toFixed(4)}</td>
         <td>± ${regLight.sd.toFixed(2)}</td>
@@ -1333,7 +1452,7 @@
       </tr>
       <tr>
         <td style="color:#475569; font-weight:bold;">🌑 黑暗期</td>
-        <td>${dStart} ~ ${dEnd} 分<br><span style="font-size:14px; color:#64748b;">(共 ${dEnd - dStart} 分鐘 / ${darkPts.length} 筆數據)</span></td>
+        <td>${dStart} ~ ${dEnd} 分<br><span style="font-size:14px; color:#64748b;">(共 ${dEnd - dStart} 分鐘 / ${darkPts.length} 筆)</span></td>
         <td class="math">y = ${regDark.m.toFixed(4)}x ${regDark.b > 0 ? '+':''} ${regDark.b.toFixed(1)}</td>
         <td>${regDark.r2.toFixed(4)}</td>
         <td>± ${regDark.sd.toFixed(2)}</td>
@@ -1345,9 +1464,10 @@
     const rateResp = regDark.m; 
     const rateNetPhoto = -regLight.m; 
     const rateGrossPhoto = rateResp + rateNetPhoto;
-    
-    // 計算換算係數 (PPM/min 轉 mg/hr)
     const coeff = vBox * 0.108;
+    
+    // 將計算出的總質量速率記錄到全域變數，供第二階段使用
+    globalGrossRateMgHr = rateGrossPhoto * coeff;
 
     const tRate = document.getElementById('rateTbody');
     tRate.innerHTML = `
@@ -1366,51 +1486,402 @@
       <tr style="background: #f0fdf4;">
         <td style="font-weight:800; color:#16a34a; font-size:18px;">🌟 總光合速率 (P_gross)</td>
         <td class="highlight" style="color:#16a34a;">${rateGrossPhoto.toFixed(3)}</td>
-        <td class="highlight" style="color:#15803d;">${(rateGrossPhoto * coeff).toFixed(2)}</td>
+        <td class="highlight" style="color:#15803d;">${globalGrossRateMgHr.toFixed(2)}</td>
         <td>淨光合速率 + 呼吸速率</td>
       </tr>
     `;
 
     document.getElementById('analysisResults').style.display = 'block';
+    document.getElementById('phase2Container').style.display = 'block'; 
     document.getElementById('analysisResults').scrollIntoView({ behavior: 'smooth', block: 'start' });
-    showFloat('ok', '分析完成！已將 PPM 換算為實際質量速率。');
+    showFloat('ok', '階段一分析完成！請進行階段二計算最終面積標準化。');
+    
+    // 喚醒最終結果區的計算 (帶入當前輸入框的值)
+    updateFinalRateView2();
+  });
+
+  // ★ 趨勢圖 View 2 的「階段二：標準化計算」邏輯
+  function updateFinalRateView2() {
+     const leafAreaDm2 = Number(document.getElementById('inputTotalLeafArea').value) || 0;
+     const finalUI = document.getElementById('finalGrossRateView2');
+     
+     if (globalGrossRateMgHr !== null && leafAreaDm2 > 0) {
+         const finalValue = globalGrossRateMgHr / leafAreaDm2;
+         finalUI.textContent = finalValue.toFixed(3);
+         document.getElementById('finalRateContainer').style.display = 'block';
+     } else {
+         finalUI.textContent = '--';
+     }
+  }
+
+  // 監聽手動改變輸入框時，即時重算
+  document.getElementById('inputTotalLeafArea').addEventListener('input', updateFinalRateView2);
+
+  // 點擊「載入最新面積」
+  document.getElementById('btnFetchLeafArea').addEventListener('click', () => {
+     let records = JSON.parse(localStorage.getItem('co2_leaf_records')) || [];
+     if(records.length === 0) {
+         showFloat('err', '尚未有任何葉面積紀錄，請先前往測量！');
+         return;
+     }
+     let totalCm2 = records.reduce((sum, r) => sum + r.area, 0);
+     let totalDm2 = totalCm2 / 100;
+     
+     document.getElementById('inputTotalLeafArea').value = totalDm2.toFixed(3);
+     updateFinalRateView2();
+     showFloat('ok', '成功載入總葉面積！已自動重算標準化速率。');
+  });
+
+  document.getElementById('btnGoToLeafApp').addEventListener('click', () => {
+      document.getElementById('btnSwitchToLeafApp').click();
   });
 
   // ==========================================
-  // 9. 畫面切換與其他 UI 事件控制
+  // 7. 葉面積影像辨識系統 (View 3)
+  // ==========================================
+  let leafRecords = JSON.parse(localStorage.getItem('co2_leaf_records')) || [];
+  
+  const cImg = document.getElementById('imgCanvas');
+  const cMask = document.getElementById('maskCanvas');
+  const cUi = document.getElementById('uiCanvas');
+  const ctxImg = cImg.getContext('2d', {willReadFrequently: true});
+  const ctxMask = cMask.getContext('2d', {willReadFrequently: true});
+  const ctxUi = cUi.getContext('2d');
+  
+  let baseImg = new Image();
+  let baseImgData = null; 
+  let manualMap = null; 
+  
+  let leafToolMode = null; 
+  let refBox = null;
+  let leafBox = null;
+  let isDragging = false;
+  let startX = 0, startY = 0;
+  let currX = 0, currY = 0;
+  
+  let countRef = 0, countLeaf = 0;
+  
+  const btnToolRef = document.getElementById('btnToolRef');
+  const btnToolLeaf = document.getElementById('btnToolLeaf');
+  const btnToolBrush = document.getElementById('btnToolBrush');
+  const btnToolEraser = document.getElementById('btnToolEraser');
+  
+  function resetLeafTools() {
+    [btnToolRef, btnToolLeaf, btnToolBrush, btnToolEraser].forEach(b => b.classList.remove('tool-active'));
+    leafToolMode = null;
+    cUi.style.cursor = 'default';
+    drawUi();
+  }
+
+  btnToolRef.onclick = () => { resetLeafTools(); leafToolMode = 'ref'; btnToolRef.classList.add('tool-active'); cUi.style.cursor = 'crosshair'; showFloat('info', '請在圖中框出 5x5 黑方塊'); };
+  btnToolLeaf.onclick = () => { resetLeafTools(); leafToolMode = 'leaf'; btnToolLeaf.classList.add('tool-active'); cUi.style.cursor = 'crosshair'; showFloat('info', '請框選包含葉片的區域'); };
+  btnToolBrush.onclick = () => { resetLeafTools(); leafToolMode = 'brush'; btnToolBrush.classList.add('tool-active'); cUi.style.cursor = 'pointer'; };
+  btnToolEraser.onclick = () => { resetLeafTools(); leafToolMode = 'eraser'; btnToolEraser.classList.add('tool-active'); cUi.style.cursor = 'pointer'; };
+  
+  document.getElementById('btnToolClear').onclick = () => {
+    refBox = null; leafBox = null;
+    if(manualMap) manualMap.fill(0);
+    resetLeafTools(); updateMask(); drawUi();
+  };
+
+  document.getElementById('leafUpload').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      baseImg.onload = () => {
+        const MAX_W = 1000;
+        let w = baseImg.width, h = baseImg.height;
+        if(w > MAX_W) { h = Math.round(h * (MAX_W / w)); w = MAX_W; }
+        
+        cImg.width = cMask.width = cUi.width = w;
+        cImg.height = cMask.height = cUi.height = h;
+        
+        ctxImg.drawImage(baseImg, 0, 0, w, h);
+        baseImgData = ctxImg.getImageData(0, 0, w, h);
+        manualMap = new Int8Array(w * h);
+        
+        document.getElementById('leafCanvasTip').style.display = 'none';
+        [btnToolRef, btnToolLeaf, btnToolBrush, btnToolEraser, document.getElementById('btnCalcLeafArea')].forEach(b => b.disabled = false);
+        
+        applyBrightnessContrast();
+      };
+      baseImg.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+
+  function applyBrightnessContrast() {
+    if(!baseImgData) return;
+    const b = parseInt(document.getElementById('leafBrightness').value);
+    const c = parseInt(document.getElementById('leafContrast').value);
+    
+    let factor = (259 * (c + 255)) / (255 * (259 - c));
+    let imgData = new ImageData(new Uint8ClampedArray(baseImgData.data), cImg.width, cImg.height);
+    let d = imgData.data;
+    
+    for (let i = 0; i < d.length; i += 4) {
+      d[i] = factor * (d[i] - 128) + 128 + b;
+      d[i+1] = factor * (d[i+1] - 128) + 128 + b;
+      d[i+2] = factor * (d[i+2] - 128) + 128 + b;
+    }
+    ctxImg.putImageData(imgData, 0, 0);
+    updateMask(); 
+  }
+
+  document.getElementById('leafBrightness').oninput = applyBrightnessContrast;
+  document.getElementById('leafContrast').oninput = applyBrightnessContrast;
+  document.getElementById('threshRef').oninput = updateMask;
+  document.getElementById('threshLeaf').oninput = updateMask;
+
+  function getMousePos(e) {
+    const rect = cUi.getBoundingClientRect();
+    const scaleX = cUi.width / rect.width;
+    const scaleY = cUi.height / rect.height;
+    return { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY };
+  }
+
+  cUi.addEventListener('mousedown', (e) => {
+    if(!leafToolMode) return;
+    isDragging = true;
+    const p = getMousePos(e);
+    startX = p.x; startY = p.y;
+    currX = p.x; currY = p.y;
+    
+    if (leafToolMode === 'brush' || leafToolMode === 'eraser') applyBrush(p.x, p.y);
+  });
+
+  cUi.addEventListener('mousemove', (e) => {
+    const p = getMousePos(e);
+    currX = p.x; currY = p.y;
+    if (isDragging) {
+      if (leafToolMode === 'brush' || leafToolMode === 'eraser') applyBrush(p.x, p.y);
+    }
+    drawUi(); 
+  });
+
+  cUi.addEventListener('mouseup', () => {
+    if(!isDragging) return;
+    isDragging = false;
+    
+    if (leafToolMode === 'ref') {
+      refBox = { x: Math.min(startX, currX), y: Math.min(startY, currY), w: Math.abs(currX - startX), h: Math.abs(currY - startY) };
+      resetLeafTools();
+    } else if (leafToolMode === 'leaf') {
+      leafBox = { x: Math.min(startX, currX), y: Math.min(startY, currY), w: Math.abs(currX - startX), h: Math.abs(currY - startY) };
+      resetLeafTools();
+    }
+    updateMask();
+  });
+  
+  cUi.addEventListener('mouseleave', () => { isDragging = false; drawUi(); });
+
+  function applyBrush(x, y) {
+    const r = parseInt(document.getElementById('brushSize').value);
+    const w = cImg.width, h = cImg.height;
+    const val = leafToolMode === 'brush' ? 1 : -1;
+    
+    for(let i = -r; i <= r; i++) {
+      for(let j = -r; j <= r; j++) {
+        if (i*i + j*j <= r*r) {
+          let px = Math.round(x + i), py = Math.round(y + j);
+          if (px >= 0 && px < w && py >= 0 && py < h) {
+            manualMap[py * w + px] = val;
+          }
+        }
+      }
+    }
+    updateMask();
+  }
+
+  function updateMask() {
+    if(!baseImgData) return;
+    const w = cImg.width, h = cImg.height;
+    const imgD = ctxImg.getImageData(0,0,w,h).data;
+    const maskD = ctxMask.createImageData(w,h);
+    const md = maskD.data;
+    
+    const tRef = parseInt(document.getElementById('threshRef').value);
+    const tLeaf = parseInt(document.getElementById('threshLeaf').value);
+    
+    countRef = 0; countLeaf = 0;
+    
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const idx = (y * w + x) * 4;
+        const mapIdx = y * w + x;
+        const lumi = 0.299 * imgD[idx] + 0.587 * imgD[idx+1] + 0.114 * imgD[idx+2];
+        
+        let isRef = false, isLeaf = false;
+        
+        if (refBox && x >= refBox.x && x <= refBox.x+refBox.w && y >= refBox.y && y <= refBox.y+refBox.h) {
+          if (lumi < tRef) isRef = true;
+        }
+        if (leafBox && x >= leafBox.x && x <= leafBox.x+leafBox.w && y >= leafBox.y && y <= leafBox.y+leafBox.h) {
+          if (lumi < tLeaf) isLeaf = true;
+        }
+        
+        if (manualMap[mapIdx] === 1) { isLeaf = true; isRef = false; }
+        if (manualMap[mapIdx] === -1) { isLeaf = false; isRef = false; }
+        
+        if (isRef) {
+          countRef++;
+          md[idx]=37; md[idx+1]=99; md[idx+2]=235; md[idx+3]=255;
+        } else if (isLeaf) {
+          countLeaf++;
+          md[idx]=239; md[idx+1]=68; md[idx+2]=68; md[idx+3]=255;
+        } else {
+          md[idx+3] = 0;
+        }
+      }
+    }
+    ctxMask.putImageData(maskD, 0, 0);
+    updateResultUI();
+  }
+
+  function drawUi() {
+    ctxUi.clearRect(0,0,cUi.width,cUi.height);
+    
+    if (refBox) { ctxUi.strokeStyle='#2563eb'; ctxUi.lineWidth=2; ctxUi.setLineDash([5,5]); ctxUi.strokeRect(refBox.x, refBox.y, refBox.w, refBox.h); }
+    if (leafBox) { ctxUi.strokeStyle='#ef4444'; ctxUi.lineWidth=2; ctxUi.setLineDash([5,5]); ctxUi.strokeRect(leafBox.x, leafBox.y, leafBox.w, leafBox.h); }
+    
+    if (isDragging && (leafToolMode==='ref' || leafToolMode==='leaf')) {
+      ctxUi.strokeStyle = leafToolMode==='ref' ? '#2563eb' : '#ef4444';
+      ctxUi.lineWidth=2; ctxUi.setLineDash([5,5]);
+      ctxUi.strokeRect(startX, startY, currX-startX, currY-startY);
+    }
+    
+    if ((leafToolMode==='brush' || leafToolMode==='eraser') && currX>0) {
+      const r = parseInt(document.getElementById('brushSize').value);
+      ctxUi.beginPath(); ctxUi.arc(currX, currY, r, 0, Math.PI*2);
+      ctxUi.strokeStyle = leafToolMode==='brush' ? '#ef4444' : '#64748b';
+      ctxUi.lineWidth=2; ctxUi.setLineDash([]); ctxUi.stroke();
+    }
+  }
+
+  function updateResultUI() {
+    document.getElementById('resRefPx').textContent = countRef.toLocaleString();
+    document.getElementById('resLeafPx').textContent = countLeaf.toLocaleString();
+    
+    let area = 0;
+    if (countRef > 0) area = (countLeaf / countRef) * 25; 
+    document.getElementById('resArea').textContent = area.toFixed(2);
+  }
+
+  document.getElementById('btnCalcLeafArea').onclick = () => {
+    if (countRef === 0) { showFloat('err', '錯誤：找不到基準塊的像素，請重新框選與調整閥值'); return; }
+    if (countLeaf === 0) { showFloat('err', '錯誤：找不到葉片的像素，請重新框選與調整閥值'); return; }
+    showFloat('ok', '面積計算完成！請輸入名稱後點擊儲存紀錄。');
+  };
+
+  document.getElementById('btnSaveLeafRecord').onclick = () => {
+    const area = Number(document.getElementById('resArea').textContent);
+    if (area <= 0) { showFloat('err', '沒有可儲存的面積數據'); return; }
+    
+    let name = document.getElementById('leafRecordName').value.trim();
+    if (!name) name = `葉片量測 ${new Date().toLocaleTimeString()}`;
+    
+    leafRecords.push({ id: Date.now(), name: name, area: area });
+    localStorage.setItem('co2_leaf_records', JSON.stringify(leafRecords));
+    
+    document.getElementById('leafRecordName').value = '';
+    renderLeafRecords();
+    showFloat('ok', '紀錄已儲存！');
+  };
+
+  function renderLeafRecords() {
+    const tbody = document.getElementById('leafRecordTbody');
+    tbody.innerHTML = '';
+    let total = 0;
+    
+    leafRecords.forEach(r => {
+      total += r.area;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td style="padding:8px; border-bottom:1px solid #e2e8f0; font-weight:bold; color:#0f766e;">${r.name}</td>
+        <td style="padding:8px; border-bottom:1px solid #e2e8f0;">${r.area.toFixed(2)}</td>
+        <td style="padding:8px; border-bottom:1px solid #e2e8f0; text-align:center;">
+          <button class="btn btn-sm btn-red" onclick="window.delLeafRec(${r.id})" style="padding:4px 8px;">刪除</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+    
+    const totalDm2 = total / 100;
+    document.getElementById('totalLeafArea').textContent = total.toFixed(2);
+  }
+  
+  window.delLeafRec = (id) => {
+    leafRecords = leafRecords.filter(r => r.id !== id);
+    localStorage.setItem('co2_leaf_records', JSON.stringify(leafRecords));
+    renderLeafRecords();
+  };
+  
+  document.getElementById('btnUploadLeafToGAS').onclick = async () => {
+    if (leafRecords.length === 0) { showFloat('err', '沒有資料可以上傳'); return; }
+    
+    document.getElementById('btnUploadLeafToGAS').textContent = '上傳中...';
+    try {
+        const payload = {
+            action: 'upload_leaf_areas',
+            expKey: currentExp,
+            records: leafRecords
+        };
+        const res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify(payload) });
+        if ((await res.json()).ok) {
+            showFloat('ok', '已成功上傳至試算表！');
+        } else {
+            showFloat('err', '上傳失敗，請確認 GAS 後端設定');
+        }
+    } catch(e) {
+        showFloat('err', '網路異常，無法上傳');
+    } finally {
+        document.getElementById('btnUploadLeafToGAS').textContent = '☁️ 上傳試算表';
+    }
+  };
+
+
+  // ==========================================
+  // 8. 畫面切換邏輯與 Modal 控制
   // ==========================================
   
-  // ★ 原理解說彈出視窗控制
-  document.getElementById('btnShowTheory').addEventListener('click', () => {
-    document.getElementById('theoryModal').style.display = 'flex';
-  });
-  document.getElementById('btnCloseTheory').addEventListener('click', () => {
-    document.getElementById('theoryModal').style.display = 'none';
-  });
+  // 原理 Modal 控制
+  document.getElementById('btnShowTheory').addEventListener('click', () => { document.getElementById('theoryModal').style.display = 'flex'; });
+  document.getElementById('btnCloseTheory').addEventListener('click', () => { document.getElementById('theoryModal').style.display = 'none'; });
+  
+  // ★ 葉面積專屬測量原理 Modal 控制
+  document.getElementById('btnShowLeafTheory').addEventListener('click', () => { document.getElementById('leafTheoryModal').style.display = 'flex'; });
+  document.getElementById('btnCloseLeafTheory').addEventListener('click', () => { document.getElementById('leafTheoryModal').style.display = 'none'; });
 
   document.getElementById('btnSwitchToTrend').addEventListener('click', () => {
-    document.getElementById('viewRealtime').classList.remove('active');
+    document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
     document.getElementById('viewTrend').classList.add('active');
     
-    // ★ 1. 自動勾選您在「即時看板」正在觀看的實驗頻道
     const currentChk = document.querySelector(`input[name="chkExp"][value="${currentExp}"]`);
     if (currentChk && !currentChk.checked) currentChk.checked = true;
     
-    // ★ 2. 確保「進階分析」的下拉選單也預設同步為該頻道
     loadNamesTrend(document.getElementById('selSource').value).then(() => {
         const selectExp = document.getElementById('selAnalysisExp');
-        if (Array.from(selectExp.options).some(o => o.value === currentExp)) {
-            selectExp.value = currentExp;
-        }
+        if (Array.from(selectExp.options).some(o => o.value === currentExp)) selectExp.value = currentExp;
     });
-    
     loadAndDrawTrend();
   });
   
-  document.getElementById('btnBackToRealtime').addEventListener('click', () => {
-    document.getElementById('viewTrend').classList.remove('active');
+  document.getElementById('btnBackToRealtimeTrend').addEventListener('click', () => {
+    document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
     document.getElementById('viewRealtime').classList.add('active');
     resetPickMode(); 
+  });
+  
+  document.getElementById('btnSwitchToLeafApp').addEventListener('click', () => {
+    document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+    document.getElementById('viewLeaf').classList.add('active');
+    renderLeafRecords(); 
+  });
+  
+  document.getElementById('btnBackFromLeaf').addEventListener('click', () => {
+    document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+    document.getElementById('viewTrend').classList.add('active');
   });
 
   async function initApp() {
@@ -1426,6 +1897,7 @@
         isAuthReady = true;
         document.getElementById('db1Dot').className = 'dot green'; document.getElementById('db1Text').textContent = '主系統: 已連線';
         listenToState(); switchExperimentRealtime(selExp.value);
+        renderLeafRecords(); 
       } else {
         document.getElementById('db1Dot').className = 'dot red'; document.getElementById('db1Text').textContent = '主系統: 斷線';
       }
