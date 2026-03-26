@@ -77,7 +77,7 @@
   @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
   /* Floating Msg & Modal */
-  .float-msg{position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); color:#fff; font-size:var(--fs-msg); font-weight:800; padding:14px 22px; border-radius:99px; white-space:nowrap; box-shadow:var(--shadow); opacity:0; pointer-events:none; transition:.2s; z-index:999999;}
+  .float-msg{position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); color:#fff; text-shadow:0 1px 2px rgba(0,0,0,0.2); font-size:var(--fs-msg); font-weight:800; padding:14px 22px; border-radius:99px; white-space:nowrap; box-shadow:var(--shadow); opacity:0; pointer-events:none; transition:.2s; z-index:999999;}
   .float-show{opacity:1; transform:translate(-50%,-50%) scale(1.02);}
   .modal-backdrop{ position:fixed; inset:0; background:rgba(0,0,0,.35); display:none; align-items:center; justify-content:center; z-index:10000; }
   .modal{ background:#fff; border-radius:16px; box-shadow:var(--shadow); max-width:800px; width:90%; padding:30px; text-align:left; max-height: 90vh; overflow-y: auto; }
@@ -594,14 +594,19 @@
 
   // ★ 全域變數紀錄階段一算出的「總質量速率」
   let globalGrossRateMgHr = null;
+  let floatTimer = null; // 新增計時器變數，防止連續點擊造成訊息消失異常
 
+  // ★ 改用 JavaScript 強制寫入顏色，徹底解決背景變白的問題
   function showFloat(type, text, seconds=3){
     const map={ok:'✅ ',err:'❌ ',info:'💡 '};
+    const bgMap={ok:'#16a34a', err:'#dc2626', info:'#2563eb'}; // 定義絕對顏色
     const el=document.getElementById('float');
-    el.className='float-msg '+type;
+    clearTimeout(floatTimer); // 重置計時器
+    el.className='float-msg';
+    el.style.backgroundColor = bgMap[type] || '#334155'; // 強制賦予底色
     el.textContent=map[type]+text;
     el.classList.add('float-show');
-    setTimeout(() => el.classList.remove('float-show'), seconds*1000);
+    floatTimer = setTimeout(() => el.classList.remove('float-show'), seconds*1000);
   }
 
   function confirmModal(title, msg) {
@@ -853,24 +858,28 @@
               previewText = `終點:${hoverX}分 (選取:${dur}分, 共${ptsCount}筆)`;
           }
 
-          ctx.font = 'bold 12px system-ui';
+          ctx.font = 'bold 13px system-ui';
           const txtW = ctx.measureText(previewText).width;
-          const boxW = txtW + 16;
+          const boxW = txtW + 20;
           
           // 防止標籤超出圖表左右邊界
           let boxX = hx - boxW / 2;
           if (boxX < left) boxX = left;
           if (boxX + boxW > right) boxX = right - boxW;
 
-          ctx.fillStyle = colorPink;
+          // ★ 繪製不透明的粉紅實體背景與白色邊框，增加對比度
+          ctx.fillStyle = '#ec4899';
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 2;
           ctx.beginPath();
-          ctx.roundRect(boxX, top - 24, boxW, 20, 4);
+          ctx.roundRect(boxX, top - 28, boxW, 24, 6);
           ctx.fill();
+          ctx.stroke();
 
-          ctx.fillStyle = '#fff';
+          ctx.fillStyle = '#ffffff';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillText(previewText, boxX + boxW / 2, top - 14);
+          ctx.fillText(previewText, boxX + boxW / 2, top - 16);
       }
       
       ctx.restore();
