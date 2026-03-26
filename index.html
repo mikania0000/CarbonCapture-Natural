@@ -132,7 +132,7 @@
     <div class="card">
       <div class="title" style="position:relative;">
         <span class="title-3d">環境二氧化碳即時看板 (自然碳匯)</span>
-        <span style="font-size: 16px; color: #9ca3af; font-weight: normal; margin-left: 8px; vertical-align: bottom;">V.2026.完美閉環版</span>
+        <span style="font-size: 16px; color: #9ca3af; font-weight: normal; margin-left: 8px; vertical-align: bottom;">V.2026.完美閉環同步版</span>
         <button id="btnLogout" class="btn btn-gray" style="position:absolute; right:0; top:0; font-size:14px; padding:8px 12px;">登出</button>
       </div>
       <div class="grid">
@@ -346,7 +346,6 @@
       <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 16px;">
         <div style="display:flex; align-items:center; gap: 16px; flex-wrap:wrap;">
             <div class="title" style="margin-bottom:0; font-size:36px; color:#0f766e;">🍃 葉面積 AI 影像測量系統</div>
-            <!-- ★ 專屬葉面積的原理解說按鈕 -->
             <button id="btnShowLeafTheory" class="btn btn-primary" style="padding: 8px 16px; display: flex; align-items: center; gap: 6px;">📖 測量原理</button>
         </div>
         <button id="btnBackFromLeaf" class="btn btn-gray">⬅ 返回趨勢分析</button>
@@ -383,10 +382,10 @@
 
       <div class="row" style="background: #f8fafc; padding: 12px 16px; border-radius: 12px; border: 1px solid #e2e8f0; margin-top:8px;">
         <div class="slider-group" style="background: #dbeafe;">
-          🟦 基準塊閥值 (越小越嚴格) <input type="range" id="threshRef" min="0" max="255" value="80" style="width:120px">
+          🟦 基準塊閥值 (越小) <input type="range" id="threshRef" min="0" max="255" value="80" style="width:120px">
         </div>
         <div class="slider-group" style="background: #fee2e2;">
-          🟥 葉片閥值 (排除白色背景) <input type="range" id="threshLeaf" min="0" max="255" value="180" style="width:120px">
+          🟥 葉片閥值 (越大) <input type="range" id="threshLeaf" min="0" max="255" value="180" style="width:120px">
         </div>
         <div class="slider-group" style="margin-left:auto;">
           筆刷大小 <input type="range" id="brushSize" min="5" max="50" value="20" style="width:80px">
@@ -466,7 +465,7 @@
 
 <!-- ★ 光合作用原理解說彈出視窗 -->
 <div id="theoryModal" class="modal-backdrop" style="z-index: 100001;">
-  <div class="modal">
+  <div class="modal" style="max-width: 800px; max-height: 90vh; overflow-y: auto; text-align: left; padding: 30px;">
     <h2 style="margin-top:0; color:#0f172a; border-bottom:2px solid #e2e8f0; padding-bottom:12px; font-size: 28px;">🌱 植物光合與呼吸作用：速率推導原理與統計分析</h2>
     
     <h3 style="color:#d97706; margin-top:24px; font-size: 22px;">一、 黑暗期：找出「呼吸作用速率 (R)」</h3>
@@ -510,7 +509,7 @@
   </div>
 </div>
 
-<!-- ★ 全新：葉面積專屬測量原理解說彈出視窗 -->
+<!-- ★ 葉面積測量專屬原理解說彈出視窗 -->
 <div id="leafTheoryModal" class="modal-backdrop" style="z-index: 100001;">
   <div class="modal" style="max-width: 800px; max-height: 90vh; overflow-y: auto; text-align: left; padding: 30px;">
     <h2 style="margin-top:0; color:#0f766e; border-bottom:2px solid #ccfbf1; padding-bottom:12px; font-size: 28px;">🍃 葉面積測量：原理解說與文獻參考</h2>
@@ -1359,14 +1358,15 @@
       resetPickMode();
       chartTrend.update();
       
-      loadNamesTrend(document.getElementById('selSource').value);
+      // ★ 確保圖表畫完後，才去更新下拉選單的名稱
+      await loadNamesTrend(source);
       
     } finally { loading.style.display = 'none'; }
   }
 
   document.getElementById('btnReloadTrend').addEventListener('click', loadAndDrawTrend);
   document.getElementById('selDurTrend').addEventListener('change', loadAndDrawTrend);
-  document.getElementById('selSource').addEventListener('change', (e) => { loadNamesTrend(e.target.value); loadAndDrawTrend(); });
+  document.getElementById('selSource').addEventListener('change', loadAndDrawTrend);
   document.querySelectorAll('input[name="chkExp"]').forEach(el => el.addEventListener('change', loadAndDrawTrend));
 
   function calculateLinearRegression(points) {
@@ -1399,7 +1399,7 @@
     return { m, b, r2, sd, pValue, startX: points[0].x, endX: points[n-1].x };
   }
 
-  // ★ 趨勢圖 View 2 的「執行迴歸分析」
+  // 趨勢圖 View 2 的「執行迴歸分析」
   document.getElementById('btnRunAnalysis').addEventListener('click', () => {
     resetPickMode();
 
@@ -1466,7 +1466,6 @@
     const rateGrossPhoto = rateResp + rateNetPhoto;
     const coeff = vBox * 0.108;
     
-    // 將計算出的總質量速率記錄到全域變數，供第二階段使用
     globalGrossRateMgHr = rateGrossPhoto * coeff;
 
     const tRate = document.getElementById('rateTbody');
@@ -1496,11 +1495,9 @@
     document.getElementById('analysisResults').scrollIntoView({ behavior: 'smooth', block: 'start' });
     showFloat('ok', '階段一分析完成！請進行階段二計算最終面積標準化。');
     
-    // 喚醒最終結果區的計算 (帶入當前輸入框的值)
     updateFinalRateView2();
   });
 
-  // ★ 趨勢圖 View 2 的「階段二：標準化計算」邏輯
   function updateFinalRateView2() {
      const leafAreaDm2 = Number(document.getElementById('inputTotalLeafArea').value) || 0;
      const finalUI = document.getElementById('finalGrossRateView2');
@@ -1514,10 +1511,8 @@
      }
   }
 
-  // 監聽手動改變輸入框時，即時重算
   document.getElementById('inputTotalLeafArea').addEventListener('input', updateFinalRateView2);
 
-  // 點擊「載入最新面積」
   document.getElementById('btnFetchLeafArea').addEventListener('click', () => {
      let records = JSON.parse(localStorage.getItem('co2_leaf_records')) || [];
      if(records.length === 0) {
@@ -1842,29 +1837,32 @@
 
 
   // ==========================================
-  // 8. 畫面切換邏輯與 Modal 控制
+  // ★ 8. 畫面切換邏輯與 Modal 控制 (已修復同步與等待問題)
   // ==========================================
   
-  // 原理 Modal 控制
   document.getElementById('btnShowTheory').addEventListener('click', () => { document.getElementById('theoryModal').style.display = 'flex'; });
   document.getElementById('btnCloseTheory').addEventListener('click', () => { document.getElementById('theoryModal').style.display = 'none'; });
   
-  // ★ 葉面積專屬測量原理 Modal 控制
   document.getElementById('btnShowLeafTheory').addEventListener('click', () => { document.getElementById('leafTheoryModal').style.display = 'flex'; });
   document.getElementById('btnCloseLeafTheory').addEventListener('click', () => { document.getElementById('leafTheoryModal').style.display = 'none'; });
 
-  document.getElementById('btnSwitchToTrend').addEventListener('click', () => {
+  // ★ 趨勢切換按鈕，加入 await 徹底解決名稱下載的時間差問題
+  document.getElementById('btnSwitchToTrend').addEventListener('click', async () => {
     document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
     document.getElementById('viewTrend').classList.add('active');
     
+    // 1. 確保趨勢圖上方的 checkbox 有勾選目前的實驗
     const currentChk = document.querySelector(`input[name="chkExp"][value="${currentExp}"]`);
     if (currentChk && !currentChk.checked) currentChk.checked = true;
     
-    loadNamesTrend(document.getElementById('selSource').value).then(() => {
-        const selectExp = document.getElementById('selAnalysisExp');
-        if (Array.from(selectExp.options).some(o => o.value === currentExp)) selectExp.value = currentExp;
-    });
-    loadAndDrawTrend();
+    // 2. ★ 嚴格等待圖表與名稱從資料庫載入完成
+    await loadAndDrawTrend();
+    
+    // 3. ★ 此時選單的 option 已經全部更新完畢，精準指定目前的實驗！
+    const selectExp = document.getElementById('selAnalysisExp');
+    if (Array.from(selectExp.options).some(o => o.value === currentExp)) {
+        selectExp.value = currentExp;
+    }
   });
   
   document.getElementById('btnBackToRealtimeTrend').addEventListener('click', () => {
