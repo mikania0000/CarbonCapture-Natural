@@ -84,7 +84,7 @@
   .modal h3{ margin:0 0 12px; font-size:24px; }
   .modal p{ margin:0 0 20px; font-size:18px; color:#4b5563; line-height:1.5;}
 
-  /* Analysis Table Styles (★ 已修復換行與滾動軸) */
+  /* Analysis Table Styles */
   .analysis-table { width: 100%; border-collapse: collapse; margin-top: 16px; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,.05); }
   .analysis-table th, .analysis-table td { padding: 12px 16px; text-align: left; border-bottom: 1px solid #e2e8f0; font-size: 16px; white-space: normal; line-height: 1.4; }
   .analysis-table th { background: #f8fafc; font-weight: bold; color: #334155; min-width: 90px; }
@@ -202,6 +202,9 @@
         <button id="btnClear" type="button" class="btn btn-deep">清空數據</button>
         <button id="btnRedraw" type="button" class="btn btn-yellow">即時重繪</button>
         
+        <!-- ★ 補回遺漏的遠端休眠按鈕 -->
+        <button id="btnPowerToggle" type="button" class="btn btn-gray" style="margin-left: 12px;">💤 遠端休眠</button>
+        
         <button id="btnSwitchToTrend" type="button" class="btn btn-pink">📊 趨勢分析</button>
         <button id="btnSwitchToLeafApp" type="button" class="btn btn-teal">🍃 葉面積測量</button>
         
@@ -287,7 +290,7 @@
       </div>
       
       <div id="analysisResults" style="display:none; margin-top: 24px; animation: fadeIn 0.5s ease;">
-        <!-- ★ 補回遺漏的匯出 EXCEL 按鈕 -->
+        <!-- ★ 補回遺漏的匯出 EXCEL 按鈕與彈性排版 -->
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 12px;">
           <h3 style="margin: 0; color: #1e293b;">📊 1. 區段線性迴歸分析結果</h3>
           <button id="btnExportExcel" class="btn btn-sm btn-green" style="display: flex; align-items: center; gap: 6px; font-size: 16px;">📥 匯出數據 EXCEL</button>
@@ -600,6 +603,7 @@
   // ★ 全域變數紀錄階段一算出的「總質量速率」
   let globalGrossRateMgHr = null;
   let floatTimer = null; // 新增計時器變數，防止連續點擊造成訊息消失異常
+  let endTimeMs = null;  // ★ 新增：用於記錄實驗絕對結束時間
 
   // ★ 改用 JavaScript 強制寫入顏色，徹底解決背景變白的問題
   function showFloat(type, text, seconds=3){
@@ -956,6 +960,11 @@
         isGateOn = data.gate === 'on';
         startTimeMs = data.startTimeMs || null;
         
+        // ★ 讀取 Firebase 中的預計結束時間
+        endTimeMs = data.endTimeMs || null;
+        // ★ 防呆：實驗進行中禁止更改倒數計時視窗
+        document.getElementById('selDurRealtime').disabled = isGateOn;
+        
         if (isGateOn) isLocalPreview = false; 
         if (!startTimeMs) isLocalPreview = true; 
 
@@ -1001,7 +1010,7 @@
             }
         }
       } else {
-        setDoc(getStateRef(), { gate: 'off', expKey: 'exp1', expName: '實驗1', startTimeMs: null });
+        setDoc(getStateRef(), { gate: 'off', expKey: 'exp1', expName: '實驗1', startTimeMs: null, endTimeMs: null, system_power: 'on' });
       }
     });
   }
@@ -1067,7 +1076,7 @@
       await batch.commit();
       try { fetch(`${GAS_URL}?action=clear&exp=${currentExp}`); } catch(e) {} 
       
-      await updateDoc(getStateRef(), { startTimeMs: null });
+      await updateDoc(getStateRef(), { startTimeMs: null, endTimeMs: null });
       document.getElementById('co2').textContent = '--'; 
       document.getElementById('ts').textContent = '--'; 
       updateRiskUI(null);
@@ -1084,11 +1093,14 @@
     datasetRealtime.length = 0;
     redrawChartRealtime();
 
+    // ★ 記錄下絕對的結束時間，不怕瀏覽器休眠
+    const durationMs = DUR_MIN_REALTIME * 60 * 1000;
     await setDoc(getStateRef(), { 
       gate: 'on', 
       expKey: currentExp, 
       expName: currentExpName, 
-      startTimeMs: Date.now() 
+      startTimeMs: Date.now(),
+      endTimeMs: Date.now() + durationMs 
     }, { merge: true });
 
     showFloat('ok', '開始正式寫入儲存');
@@ -1113,7 +1125,7 @@
     
     try { fetch(`${GAS_URL}?action=clear&exp=${currentExp}`); } catch(e) {} 
     
-    await updateDoc(getStateRef(), { startTimeMs: null });
+    await updateDoc(getStateRef(), { startTimeMs: null, endTimeMs: null });
     document.getElementById('co2').textContent = '--'; 
     document.getElementById('ts').textContent = '--'; 
     updateRiskUI(null);
@@ -1141,6 +1153,17 @@
     showFloat('ok', '已回到預覽模式，重新開始繪製');
   });
 
+  // ★ 綁定遠端休眠按鈕事件
+  document.getElementById('btnPowerToggle').addEventListener('click', async () => {
+    if (isGateOn && systemPower === 'on') { 
+        showFloat('err', '請先暫停紀錄，再讓設備休眠！'); 
+        return; 
+    }
+    const newState = systemPower === 'on' ? 'off' : 'on';
+    await updateDoc(getStateRef(), { system_power: newState });
+    showFloat(newState === 'off' ? 'info' : 'ok', newState === 'off' ? '已發送休眠指令！' : '已發送喚醒指令！');
+  });
+
   let isSyncing = false;
   async function performSync() {
     if (!auth.currentUser || isSyncing) return;
@@ -1148,7 +1171,26 @@
     try {
       const snap = await getDocs(getRecordsRef(currentExp));
       const pendingSync = [];
-      snap.forEach(docSnap => { if (docSnap.data().synced !== true) pendingSync.push({ id: docSnap.id, ...docSnap.data() }); });
+      const overTimeDocs = []; // ★ 儲存超過設定時間的無效資料
+
+      snap.forEach(docSnap => { 
+          if (docSnap.data().synced !== true) { 
+              const d = docSnap.data();
+              // ★ 嚴格時間過濾網：如果存在結束時間，且資料時間大於結束時間(容許10秒誤差)，將其歸類為無效資料
+              if (endTimeMs && d.ts > (endTimeMs + 10000)) {
+                  overTimeDocs.push(docSnap.id);
+              } else {
+                  pendingSync.push({ id: docSnap.id, ...d }); 
+              }
+          } 
+      });
+      
+      // ★ 處理超時的幽靈資料：直接將其在 Firebase 標記為已同步，但「不」送給 Google Sheet
+      if (overTimeDocs.length > 0) {
+          const batchOver = writeBatch(db);
+          overTimeDocs.forEach(id => batchOver.update(doc(db, 'artifacts', appId, 'public', 'data', `records_${currentExp}`, id), { synced: true, note: 'overtime_ignored' }));
+          await batchOver.commit();
+      }
 
       const d2D = document.getElementById('db2Dot'), d2T = document.getElementById('db2Text');
       if (pendingSync.length > 0) {
@@ -1184,7 +1226,13 @@
 
   setInterval(() => {
     if (isGateOn && startTimeMs) {
-      const remainSec = Math.max(0, Math.floor(DUR_MIN_REALTIME * 60 - ((Date.now() - startTimeMs) / 1000)));
+      // ★ 改用絕對時間計算剩餘秒數，不怕瀏覽器休眠
+      let remainSec = 0;
+      if (endTimeMs) {
+          remainSec = Math.max(0, Math.floor((endTimeMs - Date.now()) / 1000));
+      } else {
+          remainSec = Math.max(0, Math.floor(DUR_MIN_REALTIME * 60 - ((Date.now() - startTimeMs) / 1000)));
+      }
       
       const h = String(Math.floor(remainSec / 3600)).padStart(2, '0');
       const m = String(Math.floor((remainSec % 3600) / 60)).padStart(2, '0');
@@ -1192,8 +1240,14 @@
       
       document.getElementById('remain').textContent = `剩餘：${h} 時 ${m} 分 ${s} 秒`;
       
-      if (remainSec === 0) { updateDoc(getStateRef(), { gate: 'off' }); showFloat('info', '已達時長，自動停止並同步', 4); performSync(); }
-    } else document.getElementById('remain').textContent = `剩餘：-- 時 -- 分 -- 秒`;
+      if (remainSec === 0) { 
+          updateDoc(getStateRef(), { gate: 'off' }); 
+          showFloat('info', '已達時長，自動停止並同步', 4); 
+          performSync(); 
+      }
+    } else {
+        document.getElementById('remain').textContent = `剩餘：-- 時 -- 分 -- 秒`;
+    }
   }, 1000);
 
   // ==========================================
@@ -1443,9 +1497,8 @@
     return { m, b, r2, sd, pValue, startX: points[0].x, endX: points[n-1].x };
   }
 
-  let latestAnalysisCSV = ""; // ★ 用來存放即將匯出成 EXCEL 的字串資料
+  let latestAnalysisCSV = ""; 
 
-  // 趨勢圖 View 2 的「執行迴歸分析」
   document.getElementById('btnRunAnalysis').addEventListener('click', () => {
     resetPickMode();
 
@@ -1536,7 +1589,6 @@
       </tr>
     `;
 
-    // ★ 產生 CSV 匯出資料字串 (加入 \uFEFF BOM 以支援 Excel 中文顯示)
     const expText = document.getElementById('selAnalysisExp').options[document.getElementById('selAnalysisExp').selectedIndex].text;
     let csv = "\uFEFF"; 
     csv += `分析目標實驗,${expText}\n`;
@@ -1560,7 +1612,6 @@
     updateFinalRateView2();
   });
 
-  // ★ 綁定匯出 EXCEL 按鈕事件
   document.getElementById('btnExportExcel').addEventListener('click', () => {
     if (!latestAnalysisCSV) {
       showFloat('err', '請先執行迴歸分析後，再匯出數據！');
