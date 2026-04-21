@@ -3,6 +3,10 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<!-- 強制瀏覽器不快取 (防呆機制) -->
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+<meta http-equiv="Pragma" content="no-cache" />
+<meta http-equiv="Expires" content="0" />
 <title>環境二氧化碳即時看板 - 自然碳匯</title>
 
 <!-- 預先定義 Google 登入的回呼函式，避免 GSI 載入時找不到而報錯 -->
@@ -131,10 +135,16 @@
   <!-- ==================== View 1: 即時監測看板 ==================== -->
   <div id="viewRealtime" class="view-section active">
     <div class="card">
-      <div class="title" style="position:relative;">
+      <div class="title" style="position:relative; padding-right: 220px;">
         <span class="title-3d">環境二氧化碳即時看板 (自然碳匯)</span>
-        <span style="font-size: 16px; color: #9ca3af; font-weight: normal; margin-left: 8px; vertical-align: bottom;">V.2026.完美閉環同步版</span>
-        <button id="btnLogout" class="btn btn-gray" style="position:absolute; right:0; top:0; font-size:14px; padding:8px 12px;">登出</button>
+        <!-- ★ 紅色醒目版本號，用來確認有沒有更新成功 -->
+        <span style="font-size: 16px; color: #ef4444; font-weight: bold; margin-left: 8px; vertical-align: bottom;">V.2026.04.21_最新版</span>
+        
+        <!-- ★ 將遠端休眠按鈕移到右上角，與登出按鈕並排 -->
+        <div style="position:absolute; right:0; top:0; display:flex; gap:8px;">
+          <button id="btnPowerToggle" type="button" class="btn btn-gray" style="font-size:14px; padding:8px 12px; box-shadow:0 2px 4px rgba(0,0,0,.1); transition:0.3s;">💤 遠端休眠</button>
+          <button id="btnLogout" class="btn btn-gray" style="font-size:14px; padding:8px 12px; box-shadow:0 2px 4px rgba(0,0,0,.1);">登出</button>
+        </div>
       </div>
       <div class="grid">
         <div class="card">
@@ -177,12 +187,27 @@
 
       <div class="controls" style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px dashed #e5e7eb;">
         <label class="sub">時間視窗：</label>
+        <!-- ★ 擴增即時預覽選項至 24 小時 -->
         <select id="selDurRealtime">
-          <option value="10" selected>10 分鐘</option><option value="30">30 分鐘</option>
-          <option value="60">60 分鐘</option><option value="120">120 分鐘</option>
-          <option value="150">150 分鐘</option><option value="180">180 分鐘</option>
-          <option value="210">210 分鐘</option><option value="240">240 分鐘</option>
-          <option value="360">360 分鐘 (6小時)</option><option value="480">480 分鐘 (8小時)</option>
+          <option value="10" selected>10 分鐘</option>
+          <option value="30">30 分鐘</option>
+          <option value="60">60 分鐘 (1小時)</option>
+          <option value="120">120 分鐘 (2小時)</option>
+          <option value="180">180 分鐘 (3小時)</option>
+          <option value="240">240 分鐘 (4小時)</option>
+          <option value="300">300 分鐘 (5小時)</option>
+          <option value="360">360 分鐘 (6小時)</option>
+          <option value="420">420 分鐘 (7小時)</option>
+          <option value="480">480 分鐘 (8小時)</option>
+          <option value="540">540 分鐘 (9小時)</option>
+          <option value="600">600 分鐘 (10小時)</option>
+          <option value="720">720 分鐘 (12小時)</option>
+          <option value="840">840 分鐘 (14小時)</option>
+          <option value="960">960 分鐘 (16小時)</option>
+          <option value="1080">1080 分鐘 (18小時)</option>
+          <option value="1200">1200 分鐘 (20小時)</option>
+          <option value="1320">1320 分鐘 (22小時)</option>
+          <option value="1440">1440 分鐘 (24小時)</option>
         </select>
 
         <label class="sub">實驗：</label>
@@ -202,9 +227,6 @@
         <button id="btnPause" type="button" class="btn btn-red" style="display:none;">暫停</button>
         <button id="btnClear" type="button" class="btn btn-deep">清空數據</button>
         <button id="btnRedraw" type="button" class="btn btn-yellow">即時重繪</button>
-        
-        <!-- ★ 補回遺漏的遠端休眠按鈕 -->
-        <button id="btnPowerToggle" type="button" class="btn btn-gray" style="margin-left: 12px;">💤 遠端休眠</button>
         
         <button id="btnSwitchToTrend" type="button" class="btn btn-pink">📊 趨勢分析</button>
         <button id="btnSwitchToLeafApp" type="button" class="btn btn-teal">🍃 葉面積測量</button>
@@ -238,8 +260,11 @@
           <option value="120">120 分鐘 (2小時)</option>
           <option value="180">180 分鐘 (3小時)</option>
           <option value="240" selected>240 分鐘 (4小時)</option>
+          <option value="300">300 分鐘 (5小時)</option>
           <option value="360">360 分鐘 (6小時)</option>
+          <option value="420">420 分鐘 (7小時)</option>
           <option value="480">480 分鐘 (8小時)</option>
+          <option value="540">540 分鐘 (9小時)</option>
           <option value="600">600 分鐘 (10小時)</option>
           <option value="720">720 分鐘 (12小時)</option>
           <option value="840">840 分鐘 (14小時)</option>
@@ -304,7 +329,6 @@
       </div>
       
       <div id="analysisResults" style="display:none; margin-top: 24px; animation: fadeIn 0.5s ease;">
-        <!-- ★ 補回遺漏的匯出 EXCEL 按鈕與彈性排版 -->
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 12px;">
           <h3 style="margin: 0; color: #1e293b;">📊 1. 區段線性迴歸分析結果</h3>
           <button id="btnExportExcel" class="btn btn-sm btn-green" style="display: flex; align-items: center; gap: 6px; font-size: 16px;">📥 匯出數據 EXCEL</button>
@@ -617,7 +641,6 @@
   // ★ 全域變數紀錄階段一算出的「總質量速率」
   let globalGrossRateMgHr = null;
   let floatTimer = null; // 新增計時器變數，防止連續點擊造成訊息消失異常
-  let endTimeMs = null;  // ★ 新增：用於記錄實驗絕對結束時間
 
   // ★ 改用 JavaScript 強制寫入顏色，徹底解決背景變白的問題
   function showFloat(type, text, seconds=3){
@@ -920,6 +943,7 @@
   let previewStartTime = null; 
   let isLocalPreview = true;   
   let systemPower = 'on'; // ★ 追蹤遠端休眠狀態
+  let endTimeMs = null;  // ★ 記錄實驗絕對結束時間
 
   let unsubscribeRecords = null, unsubscribeState = null;
   const getStateRef = () => doc(db, 'artifacts', appId, 'public', 'data', 'config', 'global_state');
