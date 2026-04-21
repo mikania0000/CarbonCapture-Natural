@@ -182,6 +182,7 @@
           <option value="60">60 分鐘</option><option value="120">120 分鐘</option>
           <option value="150">150 分鐘</option><option value="180">180 分鐘</option>
           <option value="210">210 分鐘</option><option value="240">240 分鐘</option>
+          <option value="360">360 分鐘 (6小時)</option><option value="480">480 分鐘 (8小時)</option>
         </select>
 
         <label class="sub">實驗：</label>
@@ -231,9 +232,11 @@
         <label class="sub" style="margin-left:20px;">時間範圍：</label>
         <select id="selDurTrend">
           <option value="10">10 分鐘</option><option value="30">30 分鐘</option>
-          <option value="60">60 分鐘</option><option value="120">120 分鐘</option>
-          <option value="150">150 分鐘</option><option value="180">180 分鐘</option>
-          <option value="210">210 分鐘</option><option value="240" selected>240 分鐘</option>
+          <option value="60">60 分鐘 (1小時)</option><option value="120">120 分鐘 (2小時)</option>
+          <option value="180">180 分鐘 (3小時)</option><option value="240" selected>240 分鐘 (4小時)</option>
+          <option value="300">300 分鐘 (5小時)</option><option value="360">360 分鐘 (6小時)</option>
+          <option value="420">420 分鐘 (7小時)</option><option value="480">480 分鐘 (8小時)</option>
+          <option value="540">540 分鐘 (9小時)</option><option value="600">600 分鐘 (10小時)</option>
         </select>
         
         <span id="loadingTrend" style="display:none; color:#f59e0b; font-weight:bold; margin-left:10px;">資料讀取中...</span>
@@ -1279,7 +1282,7 @@
       responsive:true, animation:false, parsing:false, maintainAspectRatio: false,
       layout:{ padding:{ right:90, top: 30 }}, 
       scales:{
-        x:{ type:'linear', min:0, max:240, title:{display:true, text:'分鐘 (min)'} },
+        x:{ type:'linear', min:0, max:480, title:{display:true, text:'分鐘 (min)'} },
         y:{ beginAtZero:false, suggestedMin:350, suggestedMax:1100, grace:'5%', ticks:{ callback:v=>`${Number(v).toLocaleString()} PPM` } }
       },
       plugins:{
