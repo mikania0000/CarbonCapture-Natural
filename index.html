@@ -137,8 +137,8 @@
     <div class="card">
       <div class="title" style="position:relative; padding-right: 220px;">
         <span class="title-3d">環境二氧化碳即時看板 (自然碳匯)</span>
-        <!-- ★ 紅色醒目版本號 -->
-        <span style="font-size: 16px; color: #ef4444; font-weight: bold; margin-left: 8px; vertical-align: bottom;">V.4.23_時間記憶版</span>
+        <!-- ★ 紅色醒目版本號更新 -->
+        <span style="font-size: 16px; color: #ef4444; font-weight: bold; margin-left: 8px; vertical-align: bottom;">V.4.24</span>
         
         <div style="position:absolute; right:0; top:0; display:flex; gap:8px;">
           <button id="btnPowerToggle" type="button" class="btn btn-gray" style="font-size:14px; padding:8px 12px; box-shadow:0 2px 4px rgba(0,0,0,.1); transition:0.3s;">💤 遠端休眠</button>
@@ -1317,8 +1317,9 @@
       document.getElementById('remain').textContent = `剩餘：${h} 時 ${m} 分 ${s} 秒`;
       
       if (remainSec === 0) { 
-          updateDoc(getStateRef(), { gate: 'off' }); 
-          showFloat('info', '已達時長，自動停止並同步', 4); 
+          // ★ 修改：實驗結束時，同時關閉閘門(gate)並將設備設為休眠(system_power: off)
+          updateDoc(getStateRef(), { gate: 'off', system_power: 'off' }); 
+          showFloat('info', '已達時長，自動停止紀錄並進入休眠模式', 5); 
           performSync(); 
       }
     } else {
